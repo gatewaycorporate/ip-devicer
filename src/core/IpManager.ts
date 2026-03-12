@@ -7,6 +7,13 @@ import {
   computeConsistencyScore,
 } from '../libs/scoring.js';
 import { createIpStorage, type IpStorage } from '../libs/adapters/inmemory.js';
+import {
+  validateLicense,
+  type LicenseInfo,
+  type LicenseTier,
+  FREE_TIER_MAX_DEVICES,
+  FREE_TIER_MAX_HISTORY,
+} from '../libs/license.js';
 import type {
   IpManagerOptions,
   IpEnrichment,
@@ -17,9 +24,17 @@ import type {
 } from '../types.js';
 
 const DEFAULT_IMPOSSIBLE_TRAVEL_KMH = 900;
-const FREE_TIER_MAX_HISTORY = 10;
+
 const LICENSE_WARN =
-  '[ip-devicer] No license key — VPN/proxy detection and extended history disabled.';
+  '[ip-devicer] No license key — running on the free tier ' +
+  `(${FREE_TIER_MAX_HISTORY} history snapshots/device, ${FREE_TIER_MAX_DEVICES.toLocaleString()} device limit). ` +
+  'Visit https://polar.sh to upgrade to Pro or Enterprise.';
+const LICENSE_INVALID_WARN =
+  '[ip-devicer] License key could not be validated — falling back to the free tier. ' +
+  'Check your key or network connectivity.';
+const DEVICE_LIMIT_WARN =
+  `[ip-devicer] Free-tier device limit reached (${FREE_TIER_MAX_DEVICES.toLocaleString()} devices). ` +
+  'New device will not be tracked. Upgrade to Pro or Enterprise to remove this limit.'
 
 /**
  * Structural type for DeviceManager.identify so we avoid a hard dep on
@@ -35,7 +50,7 @@ interface DeviceManagerLike {
 export class IpManager {
   private readonly geo: GeoEnricher;
   private readonly proxy: ProxyEnricher;
-  private readonly storage: IpStorage;
+  private storage: IpStorage;
   private readonly options: Required<
     Pick<
       IpManagerOptions,
@@ -44,19 +59,26 @@ export class IpManager {
       | 'maxHistoryPerDevice'
     >
   > & IpManagerOptions;
-  private readonly hasLicense: boolean;
+  /** Resolved license info — available after {@link init} completes. */
+  private licenseInfo: LicenseInfo = {
+    valid: false,
+    tier: 'free',
+    maxDevices: FREE_TIER_MAX_DEVICES,
+  };
   private initPromise: Promise<void> | null = null;
 
   constructor(opts: IpManagerOptions = {}) {
-    this.hasLicense = Boolean(opts.licenseKey?.trim());
+    const hasKey = Boolean(opts.licenseKey?.trim());
 
-    if (!this.hasLicense) {
+    if (!hasKey) {
       console.warn(LICENSE_WARN);
     }
 
-    const maxHistory = this.hasLicense
+    // Optimistic history depth when a key is supplied — _doInit() will
+    // downgrade to FREE_TIER_MAX_HISTORY if Polar rejects the key.
+    const maxHistory = hasKey
       ? (opts.maxHistoryPerDevice ?? 50)
-      : FREE_TIER_MAX_HISTORY;
+      : (opts.maxHistoryPerDevice ?? FREE_TIER_MAX_HISTORY);
 
     this.options = {
       ...opts,
@@ -70,19 +92,55 @@ export class IpManager {
     this.proxy = new ProxyEnricher(
       opts.torExitListUrl,
       opts.proxyListPaths ?? [],
-      this.hasLicense,
+      hasKey,
     );
     this.storage = createIpStorage(maxHistory);
   }
 
-  /** Explicitly initialise enrichers (opens mmdb files, fetches Tor list). */
+  // ── Accessors ────────────────────────────────────────────
+
+  /** The active license tier. Resolves to `'free'` until {@link init} completes. */
+  get tier(): LicenseTier {
+    return this.licenseInfo.tier;
+  }
+
+  // ── Lifecycle ─────────────────────────────────────────────
+
+  /**
+   * Explicitly initialise enrichers (opens mmdb files, fetches Tor list) and
+   * validates the Polar license key if one was supplied.
+   *
+   * Call this once at application startup before processing requests. Safe to
+   * await multiple times — subsequent calls return the cached promise.
+   */
   async init(): Promise<void> {
     if (this.initPromise) return this.initPromise;
-    this.initPromise = Promise.all([
+    this.initPromise = this._doInit();
+    return this.initPromise;
+  }
+
+  private async _doInit(): Promise<void> {
+    const licenseKey = this.options.licenseKey?.trim();
+
+    const [licenseInfo] = await Promise.all([
+      licenseKey
+        ? validateLicense(licenseKey)
+        : Promise.resolve(this.licenseInfo),
       this.geo.init(),
       this.proxy.init(),
-    ]).then(() => undefined);
-    return this.initPromise;
+    ]);
+
+    this.licenseInfo = licenseInfo;
+
+    if (licenseKey && !licenseInfo.valid) {
+      console.warn(LICENSE_INVALID_WARN);
+      // If we over-provisioned history, recreate storage with free-tier cap.
+      if (this.options.maxHistoryPerDevice > FREE_TIER_MAX_HISTORY) {
+        this.storage = createIpStorage(FREE_TIER_MAX_HISTORY);
+        (this.options as { maxHistoryPerDevice: number }).maxHistoryPerDevice =
+          FREE_TIER_MAX_HISTORY;
+      }
+    }
   }
 
   private async ensureInit(): Promise<void> {
@@ -93,12 +151,33 @@ export class IpManager {
   /**
    * Enrich an IP address for a given deviceId.
    * Saves a snapshot and returns the enrichment + risk delta.
+   *
+   * Free-tier callers are limited to {@link FREE_TIER_MAX_DEVICES} unique
+   * devices. When the cap is reached, snapshots for new device IDs are
+   * silently dropped and a console warning is emitted.
    */
   async enrich(
     ip: string,
     deviceId: string,
   ): Promise<{ enrichment: IpEnrichment; riskDelta: number }> {
     await this.ensureInit();
+
+    // ── Free-tier device cap ───────────────────────────────────
+    const isKnown = this.storage.getLatest(deviceId) !== null;
+    if (
+      !isKnown &&
+      this.licenseInfo.tier === 'free' &&
+      this.storage.size() >= FREE_TIER_MAX_DEVICES
+    ) {
+      console.warn(DEVICE_LIMIT_WARN);
+      // Return a zero-signal enrichment so callers still get a result.
+      const empty: IpEnrichment = {
+        isProxy: false, isVpn: false, isTor: false, isHosting: false,
+        riskScore: 0, riskFactors: [], consistencyScore: 0,
+        impossibleTravel: false,
+      };
+      return { enrichment: empty, riskDelta: 0 };
+    }
 
     const [geoData, classification] = await Promise.all([
       this.geo.enrich(ip),

@@ -61,6 +61,14 @@ instructions:
    - GeoLite2-ASN.mmdb
 4. Place them in ./data/ (or any secure path) and add to .gitignore
 
+## Installation
+
+You can install ip-devicer and tls-devicer alongside FP-Devicer with
+
+```bash
+npm install devicer.js ip-devicer tls-devicer
+```
+
 ## License
 
 Published under the **Business Source License 1.1 (BSL-1.1)**
@@ -68,10 +76,13 @@ Published under the **Business Source License 1.1 (BSL-1.1)**
 - Free for dev/testing/personal use
 - Production use requires a paid license from Polar.sh
 - Free tier has device count limits and basic features only
+- Pro tier can operate on a single server and has no device count limits
+- Enterprise can operate on any number of servers and has no device count limits
 
-Pass the key in the constructor to remove all restrictions.
+Pass the key in the constructor to remove restrictions.
 
 ## Obtaining a Key
 
 ip-devicer uses polar.js for key verification. You can obtain a key for dual use
-of this library and tls-devicer by
+of this library and tls-devicer by purchasing one
+[here](https://buy.polar.sh/polar_cl_0Y4djPLDe5yLdNUDKdtPGlFW5TG2ZpFD5qkb93HsSQc)

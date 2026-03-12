@@ -3,7 +3,19 @@
 // ────────────────────────────────────────────────────────────
 
 export interface IpManagerOptions {
-  /** BSL-1.1 license key — unlocks VPN/proxy detection and full history */
+  /**
+   * Polar license key that unlocks Pro or Enterprise tier features.
+   *
+   * | Tier         | Price    | Device limit | Servers   |
+   * |--------------|---------|--------------|-----------|
+   * | Free         | $0/mo    | 10,000       | —         |
+   * | Pro          | $49/mo   | Unlimited    | 1 server  |
+   * | Enterprise   | $299/mo  | Unlimited    | Unlimited |
+   *
+   * VPN/proxy detection and extended history require Pro or Enterprise.
+   * Obtain a key at https://polar.sh and configure {@link POLAR_ORGANIZATION_ID}
+   * and {@link POLAR_BENEFIT_IDS} in `src/libs/license.ts`.
+   */
   licenseKey?: string;
   /** Path to GeoLite2-City.mmdb or GeoIP2-City.mmdb */
   maxmindPath?: string;

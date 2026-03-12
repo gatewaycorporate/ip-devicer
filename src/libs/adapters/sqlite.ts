@@ -53,6 +53,9 @@ export function createSqliteIpStorage(
   const stmtDeleteDevice = db.prepare(
     'DELETE FROM ip_snapshots WHERE deviceId = ?',
   );
+  const stmtDeviceCount = db.prepare(
+    'SELECT COUNT(DISTINCT deviceId) AS n FROM ip_snapshots',
+  );
 
   function rowToSnapshot(row: Record<string, unknown>): IpSnapshot {
     return {
@@ -94,6 +97,11 @@ export function createSqliteIpStorage(
       } else {
         db.exec('DELETE FROM ip_snapshots');
       }
+    },
+
+    size(): number {
+      const row = stmtDeviceCount.get() as { n: number };
+      return row.n;
     },
   };
 }

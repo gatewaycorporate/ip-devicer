@@ -1,6 +1,17 @@
 // ── Core ──────────────────────────────────────────────────────
 export { IpManager } from './core/IpManager.js';
 
+// ── Licensing ─────────────────────────────────────────────────
+export {
+  validateLicense,
+  evictLicenseCache,
+  POLAR_ORGANIZATION_ID,
+  POLAR_BENEFIT_IDS,
+  FREE_TIER_MAX_DEVICES,
+  FREE_TIER_MAX_HISTORY,
+} from './libs/license.js';
+export type { LicenseTier, LicenseInfo } from './libs/license.js';
+
 // ── Types ─────────────────────────────────────────────────────
 export type {
   IpManagerOptions,

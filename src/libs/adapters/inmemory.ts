@@ -6,6 +6,8 @@ export interface IpStorage {
   getHistory(deviceId: string, limit?: number): IpSnapshot[];
   getLatest(deviceId: string): IpSnapshot | null;
   clear(deviceId?: string): void;
+  /** Number of unique device IDs currently stored. */
+  size(): number;
 }
 
 export function createIpStorage(maxPerDevice: number = 50): IpStorage {
@@ -41,6 +43,10 @@ export function createIpStorage(maxPerDevice: number = 50): IpStorage {
       } else {
         store.clear();
       }
+    },
+
+    size(): number {
+      return store.size;
     },
   };
 }
