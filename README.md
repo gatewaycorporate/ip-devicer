@@ -70,3 +70,8 @@ Published under the **Business Source License 1.1 (BSL-1.1)**
 - Free tier has device count limits and basic features only
 
 Pass the key in the constructor to remove all restrictions.
+
+## Obtaining a Key
+
+ip-devicer uses polar.js for key verification. You can obtain a key for dual use
+of this library and tls-devicer by

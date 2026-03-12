@@ -6,7 +6,7 @@ import {
   computeRiskDelta,
   computeConsistencyScore,
 } from '../libs/scoring.js';
-import { createIpStorage, type IpStorage } from '../libs/storage.js';
+import { createIpStorage, type IpStorage } from '../libs/adapters/inmemory.js';
 import type {
   IpManagerOptions,
   IpEnrichment,

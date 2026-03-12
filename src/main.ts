@@ -26,8 +26,8 @@ export {
 } from './libs/scoring.js';
 
 // ── Storage ───────────────────────────────────────────────────
-export { createIpStorage } from './libs/storage.js';
-export type { IpStorage } from './libs/storage.js';
+export { createIpStorage } from './libs/adapters/inmemory.js';
+export type { IpStorage } from './libs/adapters/inmemory.js';
 
 // ── Middleware ────────────────────────────────────────────────
 export { createIpMiddleware, resolveIp } from './libs/middleware.js';

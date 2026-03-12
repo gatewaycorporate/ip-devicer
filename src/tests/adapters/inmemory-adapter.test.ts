@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createIpStorage } from '../libs/storage.js';
-import type { IpEnrichment } from '../types.js';
+import { createIpStorage } from '../../libs/adapters/inmemory.js';
+import type { IpEnrichment } from '../../types.js';
 
 const baseEnrichment: IpEnrichment = {
   isTor: false, isVpn: false, isProxy: false, isHosting: false,
