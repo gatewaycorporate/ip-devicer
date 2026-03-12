@@ -33,6 +33,7 @@ export function createSqliteIpStorage(dbPath = ':memory:', maxPerDevice = 50) {
     const stmtHistoryLimit = db.prepare('SELECT * FROM ip_snapshots WHERE deviceId = ? ORDER BY timestamp DESC, rowid DESC LIMIT ?');
     const stmtLatest = db.prepare('SELECT * FROM ip_snapshots WHERE deviceId = ? ORDER BY timestamp DESC, rowid DESC LIMIT 1');
     const stmtDeleteDevice = db.prepare('DELETE FROM ip_snapshots WHERE deviceId = ?');
+    const stmtDeviceCount = db.prepare('SELECT COUNT(DISTINCT deviceId) AS n FROM ip_snapshots');
     function rowToSnapshot(row) {
         return {
             id: row['id'],
@@ -70,6 +71,10 @@ export function createSqliteIpStorage(dbPath = ':memory:', maxPerDevice = 50) {
             else {
                 db.exec('DELETE FROM ip_snapshots');
             }
+        },
+        size() {
+            const row = stmtDeviceCount.get();
+            return row.n;
         },
     };
 }

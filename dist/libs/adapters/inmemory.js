@@ -31,5 +31,8 @@ export function createIpStorage(maxPerDevice = 50) {
                 store.clear();
             }
         },
+        size() {
+            return store.size;
+        },
     };
 }

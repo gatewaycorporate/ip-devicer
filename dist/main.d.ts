@@ -1,4 +1,6 @@
 export { IpManager } from './core/IpManager.js';
+export { validateLicense, evictLicenseCache, POLAR_ORGANIZATION_ID, POLAR_BENEFIT_IDS, FREE_TIER_MAX_DEVICES, FREE_TIER_MAX_HISTORY, } from './libs/license.js';
+export type { LicenseTier, LicenseInfo } from './libs/license.js';
 export type { IpManagerOptions, GeoData, IpEnrichment, IpSnapshot, IpIdentifyContext, IdentifyResult, EnrichedIdentifyResult, } from './types.js';
 export { GeoEnricher } from './libs/enrichment/GeoEnricher.js';
 export { ProxyEnricher } from './libs/enrichment/ProxyEnricher.js';
