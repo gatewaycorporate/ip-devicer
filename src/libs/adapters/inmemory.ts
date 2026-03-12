@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { IpSnapshot } from '../types.js';
+import type { IpSnapshot } from '../../types.js';
 
 export interface IpStorage {
   save(snapshot: Omit<IpSnapshot, 'id'>): IpSnapshot;
