@@ -2,11 +2,12 @@
 
 ## Developed by Gateway Corporate Solutions
 
-**TLS & Network Fingerprinting Middleware** for the FP-Devicer Intelligence
-Suite.
+**IP Intelligence Middleware** for the FP-Devicer Intelligence Suite.
 
-Passively collect and match JA4 fingerprints, TLS extensions, cipher order,
-HTTP/2 settings, and header consistency to strengthen device identity.
+Instantly enrich every `deviceId` with production-grade IP signals: MaxMind
+geolocation (country, city, subdivision, ASN), proxy/VPN/Tor/hosting detection,
+reputation scoring, impossible-travel alerts, and historical consistency
+matching — all 100% self-hosted and invisible to clients.
 
 Part of the [FP-Devicer](https://github.com/gatewaycorporate/fp-devicer) family
 — invisible to clients and extremely hard to spoof.
@@ -14,42 +15,51 @@ Part of the [FP-Devicer](https://github.com/gatewaycorporate/fp-devicer) family
 ## Usage
 
 ip-devicer is designed to integrate seamlessly with FP-Devicer by use of the
-`registerWith` helper. This works best when your reverse proxy injects JA4 and
-TLS headers.
+`registerWith` helper.
 
 ```typescript
-import { DeviceManager } from 'devicer.js';
-import { TlsManager } from 'tls-devicer';
+import { IpManager } from "ip-devicer";
 
-const deviceManager = new DeviceManager(...);
-const tlsManager = new TlsManager({
-  licenseKey: process.env.TLS_DEVICER_LICENSE_KEY
+const deviceManager = new DeviceManager(createInMemoryAdapter());
+const ipManager = new IpManager({
+	licenseKey: process.env.IP_DEVICER_LICENSE_KEY,
+	maxmindPath: "./data/GeoLite2-City.mmdb",
+	asnPath: "./data/GeoLite2-ASN.mmdb",
+	enableReputation: true,
 });
 
-tlsManager.registerWith(deviceManager);
+// One-line registration — everything else is automatic
+ipManager.registerWith(deviceManager);
 
-app.post('/identify', async (req, res) => {
-  const result = await deviceManager.identify(req.body, {
-    tlsProfile: {
-      ja4: req.headers['x-ja4'],
-      extensions: req.headers['x-tls-extensions']?.split(','),
-      http2Settings: req.headers['x-http2-settings']
-    }
-  });
+app.post("/identify", async (req, res) => {
+	const result = await deviceManager.identify(req.body.fpPayload, {
+		ip: req.ip,
+		userId: req.user?.id,
+		headers: req.headers,
+	});
+
+	console.log("IP Enrichment Result:", {
+		deviceId: result.deviceId,
+		confidence: result.confidence,
+		ipRiskDelta: result.ipRiskDelta,
+		enrichment: result.ipEnrichment,
+	});
+
+	res.json(result);
 });
 ```
 
-## Recommended Setup (Nginx)
+## Recommended Setup (MaxMind)
 
-```nginx
-http {
-    map $ssl_client_hello_ja4 $ja4 {
-        default $ssl_client_hello_ja4;
-    }
-    proxy_set_header X-JA4 $ja4;
-    proxy_set_header X-TLS-Extensions $ssl_client_hello_extensions;
-}
-```
+To get full usage out of this library, you will need to follow these
+instructions:
+
+1. Create a free MaxMind account at maxmind.com
+2. Generate a license key in the portal
+3. Download the latest:
+   - GeoLite2-City.mmdb
+   - GeoLite2-ASN.mmdb
+4. Place them in ./data/ (or any secure path) and add to .gitignore
 
 ## License
 
