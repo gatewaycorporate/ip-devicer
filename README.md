@@ -61,6 +61,11 @@ instructions:
    - GeoLite2-ASN.mmdb
 4. Place them in ./data/ (or any secure path) and add to .gitignore
 
+### Documentation
+
+This project uses typedoc and autodeploys via GitHub Pages. You can view the
+generated documentation [here](https://gatewaycorporate.github.io/ip-devicer/).
+
 ## Installation
 
 You can install ip-devicer and tls-devicer alongside FP-Devicer with
