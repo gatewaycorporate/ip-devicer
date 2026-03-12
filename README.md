@@ -22,7 +22,7 @@ import { IpManager } from "ip-devicer";
 
 const deviceManager = new DeviceManager(createInMemoryAdapter());
 const ipManager = new IpManager({
-	licenseKey: process.env.IP_DEVICER_LICENSE_KEY,
+	licenseKey: process.env.DEVICER_LICENSE_KEY,
 	maxmindPath: "./data/GeoLite2-City.mmdb",
 	asnPath: "./data/GeoLite2-ASN.mmdb",
 	enableReputation: true,
