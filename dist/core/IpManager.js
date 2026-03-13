@@ -41,7 +41,7 @@ export class IpManager {
             maxHistoryPerDevice: maxHistory,
         };
         this.geo = new GeoEnricher(opts.maxmindPath, opts.asnPath);
-        this.proxy = new ProxyEnricher(opts.torExitListUrl, opts.proxyListPaths ?? [], hasKey);
+        this.proxy = new ProxyEnricher(opts.torExitListUrl, opts.proxyListPaths ?? [], hasKey, opts.enableRdap ?? true);
         this.storage = createIpStorage(maxHistory);
     }
     // ── Accessors ────────────────────────────────────────────

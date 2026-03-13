@@ -23,6 +23,11 @@ export interface IpManagerOptions {
     torExitListUrl?: string;
     /** Paths to plain-text CIDR files for VPN/proxy ranges (one CIDR per line) */
     proxyListPaths?: string[];
+    /**
+     * Enable RDAP lookups for ASN enrichment. Default: `true`.
+     * Set to `false` to skip outbound RDAP network calls entirely.
+     */
+    enableRdap?: boolean;
     /** Max IP snapshots kept per deviceId in memory. Default: 50 (10 without key) */
     maxHistoryPerDevice?: number;
     /** Minimum km/h speed that triggers impossible-travel alert. Default: 900 */

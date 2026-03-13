@@ -1,6 +1,10 @@
 import type { IpEnrichment, IpSnapshot } from '../../types.js';
 interface ReputationInput extends Omit<IpEnrichment, 'riskScore' | 'riskFactors' | 'consistencyScore'> {
     deviceHistory: IpSnapshot[];
+    rdapInfo?: {
+        asn?: number;
+        asnOrg?: string;
+    };
 }
 export declare function computeRiskScore(input: ReputationInput, enabled: boolean): {
     score: number;
