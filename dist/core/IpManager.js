@@ -13,6 +13,7 @@ const LICENSE_INVALID_WARN = '[ip-devicer] License key could not be validated â€
 const DEVICE_LIMIT_WARN = `[ip-devicer] Free-tier device limit reached (${FREE_TIER_MAX_DEVICES.toLocaleString()} devices). ` +
     'New device will not be tracked. Upgrade to Pro or Enterprise to remove this limit.';
 export class IpManager {
+    static DEVICE_MANAGER_PLUGIN_NAME = 'ip';
     geo;
     proxy;
     storage;
@@ -171,6 +172,46 @@ export class IpManager {
      * will automatically enrich the result with IP signals.
      */
     registerWith(deviceManager) {
+        if (typeof deviceManager.registerIdentifyPostProcessor === 'function') {
+            deviceManager.registerIdentifyPostProcessor(IpManager.DEVICE_MANAGER_PLUGIN_NAME, async ({ result, context }) => {
+                const ctx = (context ?? {});
+                if (!ctx.ip) {
+                    return;
+                }
+                const { enrichment, riskDelta } = await this.enrich(ctx.ip, result.deviceId);
+                return {
+                    result: {
+                        ipEnrichment: enrichment,
+                        ipRiskDelta: riskDelta,
+                    },
+                    enrichmentInfo: {
+                        country: enrichment.country,
+                        asn: enrichment.asn,
+                        riskScore: enrichment.riskScore,
+                        riskDelta,
+                        consistencyScore: enrichment.consistencyScore,
+                        impossibleTravel: enrichment.impossibleTravel,
+                        isProxy: enrichment.isProxy,
+                        isVpn: enrichment.isVpn,
+                        isTor: enrichment.isTor,
+                        isHosting: enrichment.isHosting,
+                    },
+                    logMeta: {
+                        riskScore: enrichment.riskScore,
+                        riskDelta,
+                        consistencyScore: enrichment.consistencyScore,
+                        impossibleTravel: enrichment.impossibleTravel,
+                        networkFlags: {
+                            isProxy: enrichment.isProxy,
+                            isVpn: enrichment.isVpn,
+                            isTor: enrichment.isTor,
+                            isHosting: enrichment.isHosting,
+                        },
+                    },
+                };
+            });
+            return;
+        }
         const original = deviceManager.identify.bind(deviceManager);
         // eslint-disable-next-line @typescript-eslint/no-this-alias
         const self = this;

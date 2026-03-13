@@ -6,8 +6,21 @@ import type { IpManagerOptions, IpEnrichment, IpSnapshot, IdentifyResult } from 
  */
 interface DeviceManagerLike {
     identify(data: unknown, context?: Record<string, unknown>): Promise<IdentifyResult>;
+    registerIdentifyPostProcessor?(name: string, processor: (payload: {
+        result: IdentifyResult;
+        context?: Record<string, unknown>;
+    }) => Promise<{
+        result?: Record<string, unknown>;
+        enrichmentInfo?: Record<string, unknown>;
+        logMeta?: Record<string, unknown>;
+    } | void> | {
+        result?: Record<string, unknown>;
+        enrichmentInfo?: Record<string, unknown>;
+        logMeta?: Record<string, unknown>;
+    } | void): () => void;
 }
 export declare class IpManager {
+    private static readonly DEVICE_MANAGER_PLUGIN_NAME;
     private readonly geo;
     private readonly proxy;
     private storage;
