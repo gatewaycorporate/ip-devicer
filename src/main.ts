@@ -39,6 +39,11 @@ export {
 // ── Storage ───────────────────────────────────────────────────
 export { createIpStorage } from './libs/adapters/inmemory.js';
 export type { IpStorage } from './libs/adapters/inmemory.js';
+export { createSqliteIpStorage } from './libs/adapters/sqlite.js';
+export { createPostgresIpStorage } from './libs/adapters/postgres.js';
+export type { AsyncIpStorage } from './libs/adapters/postgres.js';
+export { createRedisIpStorage } from './libs/adapters/redis.js';
 
 // ── Middleware ────────────────────────────────────────────────
 export { createIpMiddleware, resolveIp } from './libs/middleware.js';
+export type { NextFunction } from './libs/middleware.js';

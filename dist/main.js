@@ -10,5 +10,8 @@ export { computeRiskScore } from './libs/enrichment/reputation.js';
 export { detectImpossibleTravel, computeRiskDelta, computeConsistencyScore, haversineKm, } from './libs/scoring.js';
 // ── Storage ───────────────────────────────────────────────────
 export { createIpStorage } from './libs/adapters/inmemory.js';
+export { createSqliteIpStorage } from './libs/adapters/sqlite.js';
+export { createPostgresIpStorage } from './libs/adapters/postgres.js';
+export { createRedisIpStorage } from './libs/adapters/redis.js';
 // ── Middleware ────────────────────────────────────────────────
 export { createIpMiddleware, resolveIp } from './libs/middleware.js';
