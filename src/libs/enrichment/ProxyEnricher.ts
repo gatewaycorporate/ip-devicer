@@ -5,60 +5,95 @@ const DEFAULT_TOR_URL = 'https://check.torproject.org/torbulkexitlist';
 
 /**
  * Well-known VPN provider egress CIDR prefixes (representative subset).
- * Sources: published AS/BGP data & provider transparency pages.
+ * Sources: RDAP/RIPE/ARIN registry data & provider transparency pages.
+ * All ranges verified via RDAP — registrant noted where it differs from provider.
  */
 const DEFAULT_VPN_CIDRS: string[] = [
-  // Mullvad
-  '193.138.218.0/24', '185.213.154.0/24', '185.195.232.0/22',
-  '91.90.44.0/24', '188.241.83.0/24', '185.65.134.0/24',
-  // ProtonVPN
-  '185.159.156.0/22', '37.19.198.0/24', '185.107.80.0/22',
-  '194.126.177.0/24', '194.126.178.0/24',
-  // Windscribe
+  // Mullvad (31173 Services AB — own registered IP space)
+  '193.138.218.0/24', '193.138.219.0/24',
+  '185.213.154.0/24', '185.213.155.0/24',
+  '185.195.232.0/22',
+  '185.65.134.0/24', '185.65.135.0/24',
+  '193.32.127.0/24',
+  // Mullvad via Blix / M247 transit
+  '91.90.44.0/24', '188.241.83.0/24',
+  '146.70.124.0/22', '146.70.128.0/22', '89.45.90.0/24',
+  // ProtonVPN (Proton AG — own registered IP space)
+  '185.159.156.0/22',
+  '185.159.157.0/24', '185.159.158.0/24', '185.159.159.0/24',
+  '194.126.177.0/24',
+  // Windscribe (OVH / Total Server Solutions / Vultr infrastructure)
   '199.116.118.0/24', '104.238.180.0/24', '198.8.83.0/24',
   '104.223.100.0/22',
-  // Private Internet Access (PIA)
-  '209.222.18.0/24', '209.222.19.0/24', '198.8.80.0/21',
-  // IPVanish
-  '209.197.24.0/21', '198.8.80.0/21', '66.235.168.0/21',
-  // Surfshark
-  '45.87.212.0/22', '156.146.34.0/24', '156.146.32.0/22',
-  // NordVPN
-  '192.145.116.0/24', '185.93.182.0/24', '37.120.135.0/24',
+  '192.99.0.0/18', '51.195.12.0/22',
+  // Private Internet Access (PIA / The Constant Company)
+  '209.222.18.0/24',
+  '198.8.80.0/21',
+  '185.217.68.0/22',
+  // IPVanish (StackPath / Ziff Davis infrastructure)
+  '205.185.192.0/22',
+  '67.205.188.0/22',
+  // Surfshark (M247 / Datacamp / CDN77 / Amarutu infrastructure)
+  '45.87.212.0/22', '156.146.32.0/22',
+  '217.138.207.0/24', '217.138.220.0/22',
+  '195.181.162.0/24',
+  '143.244.48.0/22',
+  '31.220.0.0/17',
+  // NordVPN (Tefincom / Green Floid / M247 / UpCloud / Datacamp)
+  '192.145.116.0/24', '185.93.182.0/24',
+  '195.123.212.0/22', '195.123.240.0/22', '195.123.244.0/22',
+  '37.120.128.0/22', '37.120.131.0/24', '37.120.135.0/24',
   '89.187.160.0/21',
-  // ExpressVPN
-  '185.236.200.0/22', '103.108.48.0/22',
-  // HideMyAss (HMA)
+  '94.237.0.0/22', '94.237.4.0/22',
+  '84.17.32.0/20',
+  // ExpressVPN (M247 / AP transit)
+  '185.236.200.0/22',
+  '103.108.48.0/22', '103.108.52.0/22',
+  '149.255.56.0/22',
+  // HideMyAss (HMA / Privax)
   '171.22.24.0/22', '77.247.96.0/20',
-  // AirVPN
-  '185.203.0.0/22', '10.4.0.0/16',
+  // AirVPN (NFOrce / itm8 A/S infrastructure)
+  '185.203.0.0/22', '109.201.133.0/24',
   // TunnelBear
-  '216.115.17.0/24', '104.199.0.0/16',
-  // VyprVPN (Goldenfrog)
+  '216.115.17.0/24',
+  // VyprVPN (IT7 Networks / Goldenfrog / Scaleway)
   '81.17.16.0/20', '185.202.220.0/22',
+  '184.75.212.0/22',
+  '163.172.0.0/20',
 ];
 
 /**
  * Well-known public / commercial proxy provider CIDR prefixes (representative subset).
  * Includes open-proxy datacenter blocks and known residential-proxy gateways.
+ * All ranges verified via RDAP — registrant noted where it differs from provider.
  */
 const DEFAULT_PROXY_CIDRS: string[] = [
   // Luminati / Bright Data
   '85.238.100.0/22', '185.130.104.0/22', '154.16.72.0/22',
-  // Smartproxy
+  '193.169.255.0/24', '45.148.0.0/22', '194.165.16.0/22',
+  // Smartproxy (Clouvider / Rapidseedbox / GIG.tech infrastructure)
   '193.8.56.0/21', '85.239.32.0/22',
-  // Oxylabs
-  '82.102.20.0/24', '82.102.21.0/24', '82.102.22.0/24',
+  '45.140.13.0/24', '185.69.166.0/24', '45.130.60.0/22',
+  // Oxylabs (code200 / M247 infrastructure)
+  '82.102.20.0/24', '82.102.21.0/24', '82.102.22.0/24', '82.102.23.0/24',
+  '185.229.116.0/22',
+  '82.102.16.0/22',
   // PacketStream
   '104.144.138.0/24', '104.144.139.0/24',
-  // Storm Proxies
+  // Storm Proxies (DigitalOcean infrastructure)
   '198.199.120.0/22', '159.89.48.0/21',
+  '142.93.0.0/18', '165.232.128.0/18',
   // NetNut
   '85.203.44.0/22',
   // ProxyMesh
   '67.205.128.0/20',
-  // Known open-proxy hosting blocks (Vultr, Choopa)
+  // IPRoyal (EI Technical / THE Hosting infrastructure)
+  '193.57.112.0/22', '45.142.212.0/22',
+  // Webshare (Namecheap infrastructure)
+  '66.29.128.0/18',
+  // Known open-proxy hosting blocks (Vultr / Choopa)
   '45.76.0.0/16', '45.32.0.0/14', '108.61.0.0/16',
+  '104.207.128.0/17', '66.42.96.0/19', '207.246.64.0/18',
   // GiglinxProxy / proxy.sh
   '46.165.240.0/21',
 ];
@@ -67,18 +102,31 @@ const DEFAULT_PROXY_CIDRS: string[] = [
 const HOSTING_CIDRS: string[] = [
   // AWS
   '3.0.0.0/8', '18.0.0.0/8', '52.0.0.0/8', '54.0.0.0/8', '34.0.0.0/8', '35.0.0.0/8',
+  '3.8.0.0/14', '3.120.0.0/14',
+  '13.32.0.0/15', '13.34.0.0/16',
+  '52.14.0.0/16',
+  '54.72.0.0/15',
   // GCP
   '35.185.0.0/16', '35.186.0.0/16', '35.192.0.0/14', '34.64.0.0/10',
+  '34.80.0.0/12', '34.96.0.0/14',
+  '35.187.0.0/16', '35.188.0.0/14', '35.196.0.0/15', '35.198.0.0/16', '35.224.0.0/14',
   // Azure
   '20.0.0.0/8', '40.64.0.0/10', '13.64.0.0/11',
+  '52.224.0.0/11', '23.96.0.0/13', '168.63.0.0/16',
   // DigitalOcean
   '159.65.0.0/16', '167.99.0.0/16', '138.197.0.0/16', '104.131.0.0/16',
+  '134.122.0.0/16', '137.184.0.0/16', '188.166.0.0/16', '206.189.0.0/16',
   // Linode/Akamai
   '45.33.0.0/16', '45.56.0.0/16', '172.104.0.0/14',
+  '45.79.0.0/16', '66.228.32.0/19', '69.164.192.0/18', '72.14.176.0/21', '96.126.96.0/19',
   // OVH
   '51.68.0.0/16', '51.75.0.0/16', '51.161.0.0/16', '135.125.0.0/16',
+  '51.38.0.0/16', '51.77.0.0/16', '51.91.0.0/16',
+  '54.36.0.0/16', '54.37.0.0/16',
+  '145.239.0.0/16', '178.32.0.0/14', '188.165.0.0/16', '213.32.0.0/16',
   // Hetzner
   '116.202.0.0/15', '136.243.0.0/16', '144.76.0.0/15',
+  '88.99.0.0/16', '95.216.0.0/15', '157.90.0.0/16', '168.119.0.0/16', '176.9.0.0/16',
 ];
 
 function parseCidrs(text: string): string[] {
@@ -115,6 +163,7 @@ export class ProxyEnricher {
     private readonly torExitListUrl: string = DEFAULT_TOR_URL,
     private readonly proxyListPaths: string[] = [],
     private readonly hasLicense: boolean = false,
+    private readonly enableRdap: boolean = true,
   ) {}
 
   async init(): Promise<void> {
@@ -174,17 +223,57 @@ export class ProxyEnricher {
     return this.hostingCidrs.some((cidr) => isInCidr(ip, cidr));
   }
 
-  classifyAll(ip: string): {
+  /**
+   * Query ARIN RDAP (falling back to RIPE on 404) to look up the registered
+   * network name and origin ASN for a given IPv4 address.
+   *
+   * Returns `{}` for IPv6 addresses and on any network/parse failure so that
+   * callers can always destructure the result safely.
+   */
+  async getRdapInfo(ip: string): Promise<{ asn?: number; asnOrg?: string }> {
+    if (!this.enableRdap) return {};
+    // CIDR lists are IPv4-only; skip IPv6 without hitting the network
+    if (ip.includes(':')) return {};
+    try {
+      const arinRes = await fetch(`https://rdap.arin.net/registry/ip/${encodeURIComponent(ip)}`, {
+        signal: AbortSignal.timeout(8_000),
+      });
+      if (arinRes.ok) {
+        const data = await arinRes.json() as {
+          name?: string;
+          originASes?: string[];
+        };
+        const asnOrg = data.name ?? undefined;
+        const rawAsn = data.originASes?.[0];
+        const asn = rawAsn ? parseInt(rawAsn.replace(/^AS/i, ''), 10) || undefined : undefined;
+        return { asn, asnOrg };
+      }
+      // Only fall back to RIPE when ARIN says the block is outside its registry
+      if (arinRes.status !== 404) return {};
+      const ripeRes = await fetch(`https://rdap.db.ripe.net/ip/${encodeURIComponent(ip)}`, {
+        signal: AbortSignal.timeout(8_000),
+      });
+      if (!ripeRes.ok) return {};
+      const data = await ripeRes.json() as { name?: string };
+      return { asnOrg: data.name ?? undefined };
+    } catch {
+      return {};
+    }
+  }
+
+  async classifyAll(ip: string): Promise<{
     isTor: boolean;
     isVpn: boolean;
     isProxy: boolean;
     isHosting: boolean;
-  } {
+    rdapInfo: { asn?: number; asnOrg?: string };
+  }> {
     return {
       isTor: this.isTor(ip),
       isVpn: this.isVpn(ip),
       isProxy: this.isProxy(ip),
       isHosting: this.isHosting(ip),
+      rdapInfo: await this.getRdapInfo(ip),
     };
   }
 

@@ -93,6 +93,7 @@ export class IpManager {
       opts.torExitListUrl,
       opts.proxyListPaths ?? [],
       hasKey,
+      opts.enableRdap ?? true,
     );
     this.storage = createIpStorage(maxHistory);
   }

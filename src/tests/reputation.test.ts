@@ -72,3 +72,91 @@ describe('computeRiskScore', () => {
     expect(score).toBe(100);
   });
 });
+
+// ── rdapInfo integration ───────────────────────────────────────────────────────
+
+describe('computeRiskScore – rdapInfo integration', () => {
+  it('adds rdap_suspect_org for a known VPN registrant org', () => {
+    const { score, factors } = computeRiskScore(
+      { ...baseEnrichment, rdapInfo: { asnOrg: 'Mullvad VPN AB' } },
+      true,
+    );
+    expect(factors).toContain('rdap_suspect_org');
+    expect(score).toBe(10);
+  });
+
+  it('adds rdap_suspect_org for Tefincom (NordVPN registrant)', () => {
+    const { score, factors } = computeRiskScore(
+      { ...baseEnrichment, rdapInfo: { asnOrg: 'Tefincom S.A.' } },
+      true,
+    );
+    expect(factors).toContain('rdap_suspect_org');
+    expect(score).toBe(10);
+  });
+
+  it('adds rdap_suspect_org for Bright Data (proxy registrant)', () => {
+    const { score, factors } = computeRiskScore(
+      { ...baseEnrichment, rdapInfo: { asnOrg: 'Bright Data Ltd' } },
+      true,
+    );
+    expect(factors).toContain('rdap_suspect_org');
+    expect(score).toBe(10);
+  });
+
+  it('does not add rdap_suspect_org for a clean ISP', () => {
+    const { factors } = computeRiskScore(
+      { ...baseEnrichment, rdapInfo: { asnOrg: 'Comcast Cable Communications' } },
+      true,
+    );
+    expect(factors).not.toContain('rdap_suspect_org');
+  });
+
+  it('does not add rdap_suspect_org when asnOrg is absent', () => {
+    const { factors } = computeRiskScore(
+      { ...baseEnrichment, rdapInfo: { asn: 12345 } },
+      true,
+    );
+    expect(factors).not.toContain('rdap_suspect_org');
+  });
+
+  it('does not add rdap_suspect_org when rdapInfo is undefined', () => {
+    const { factors } = computeRiskScore(
+      { ...baseEnrichment },
+      true,
+    );
+    expect(factors).not.toContain('rdap_suspect_org');
+  });
+
+  it('rdap_suspect_org is not scored when reputation is disabled', () => {
+    const { score, factors } = computeRiskScore(
+      { ...baseEnrichment, rdapInfo: { asnOrg: 'Mullvad VPN AB' } },
+      false,
+    );
+    expect(score).toBe(0);
+    expect(factors).toHaveLength(0);
+  });
+
+  it('uses rdapInfo.asn as fallback for new_asn when input.asn is undefined', () => {
+    const history: IpSnapshot[] = [{
+      id: '1', deviceId: 'd1', timestamp: new Date(), ip: '1.2.3.4',
+      enrichment: { ...baseEnrichment, consistencyScore: 100, riskScore: 0, riskFactors: [], asn: 999, isTor: false, isVpn: false, isProxy: false, isHosting: false, impossibleTravel: false },
+    }];
+    const { factors } = computeRiskScore(
+      { ...baseEnrichment, asn: undefined, rdapInfo: { asn: 15169 }, deviceHistory: history },
+      true,
+    );
+    expect(factors).toContain('new_asn');
+  });
+
+  it('rdap_suspect_org stacks with other factors and caps at 100', () => {
+    const { score } = computeRiskScore(
+      {
+        ...baseEnrichment,
+        isTor: true, isVpn: true, isProxy: true, isHosting: true, impossibleTravel: true,
+        rdapInfo: { asnOrg: 'Mullvad VPN AB' },
+      },
+      true,
+    );
+    expect(score).toBe(100);
+  });
+});

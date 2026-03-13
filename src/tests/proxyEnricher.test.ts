@@ -3,7 +3,7 @@ import { ProxyEnricher } from '../libs/enrichment/ProxyEnricher.js';
 
 // Helper: build an enricher with network disabled and initDone pre-set
 function makeEnricher(hasLicense = false): ProxyEnricher {
-  const pe = new ProxyEnricher(undefined, [], hasLicense);
+  const pe = new ProxyEnricher(undefined, [], hasLicense, false);
   (pe as unknown as { initDone: boolean }).initDone = true;
   return pe;
 }
@@ -55,13 +55,13 @@ describe('ProxyEnricher – default VPN CIDRs (no license required)', () => {
     ['Mullvad (193.138.218.0/24)',    '193.138.218.5'],
     ['Mullvad (185.195.232.0/22)',    '185.195.232.10'],
     ['ProtonVPN (185.159.156.0/22)',  '185.159.156.10'],
-    ['ProtonVPN (37.19.198.0/24)',    '37.19.198.50'],
+    ['ProtonVPN (194.126.177.0/24)',  '194.126.177.5'],
     ['Windscribe (199.116.118.0/24)', '199.116.118.50'],
     ['Windscribe (104.223.100.0/22)', '104.223.100.1'],
     ['PIA (209.222.18.0/24)',         '209.222.18.100'],
     ['PIA (198.8.80.0/21)',           '198.8.80.5'],
-    ['IPVanish (209.197.24.0/21)',    '209.197.24.1'],
-    ['IPVanish (66.235.168.0/21)',    '66.235.168.3'],
+    ['IPVanish (205.185.192.0/22)',  '205.185.193.5'],
+    ['IPVanish (67.205.188.0/22)',   '67.205.188.5'],
     ['Surfshark (45.87.212.0/22)',    '45.87.212.5'],
     ['Surfshark (156.146.32.0/22)',   '156.146.32.200'],
     ['NordVPN (192.145.116.0/24)',    '192.145.116.2'],
@@ -136,28 +136,33 @@ describe('ProxyEnricher – default proxy CIDRs (no license required)', () => {
 // ── classifyAll ────────────────────────────────────────────────────────────────
 
 describe('ProxyEnricher – classifyAll', () => {
-  it('returns all false for a clean residential IP', () => {
-    const result = makeEnricher().classifyAll('8.8.8.8');
-    expect(result).toEqual({ isTor: false, isVpn: false, isProxy: false, isHosting: false });
+  it('returns all false for a clean residential IP', async () => {
+    const result = await makeEnricher().classifyAll('8.8.8.8');
+    expect(result).toEqual({ isTor: false, isVpn: false, isProxy: false, isHosting: false, rdapInfo: {} });
   });
 
-  it('flags a default VPN IP via classifyAll', () => {
-    const result = makeEnricher().classifyAll('193.138.218.5');
+  it('flags a default VPN IP via classifyAll', async () => {
+    const result = await makeEnricher().classifyAll('193.138.218.5');
     expect(result.isVpn).toBe(true);
     expect(result.isProxy).toBe(false);
   });
 
-  it('flags a default proxy IP via classifyAll', () => {
-    const result = makeEnricher().classifyAll('85.238.100.1');
+  it('flags a default proxy IP via classifyAll', async () => {
+    const result = await makeEnricher().classifyAll('85.238.100.1');
     expect(result.isProxy).toBe(true);
     expect(result.isVpn).toBe(false);
   });
 
-  it('flags a hosting IP as hosting, not VPN or proxy', () => {
-    const result = makeEnricher().classifyAll('52.10.50.1');
+  it('flags a hosting IP as hosting, not VPN or proxy', async () => {
+    const result = await makeEnricher().classifyAll('52.10.50.1');
     expect(result.isHosting).toBe(true);
     expect(result.isVpn).toBe(false);
     expect(result.isProxy).toBe(false);
+  });
+
+  it('includes empty rdapInfo when RDAP is disabled', async () => {
+    const result = await makeEnricher().classifyAll('193.138.218.5');
+    expect(result.rdapInfo).toEqual({});
   });
 });
 
@@ -209,5 +214,36 @@ describe('ProxyEnricher – refresh()', () => {
 
     expect(pe.isVpn('193.138.218.5')).toBe(true);
     expect(pe.isProxy('85.238.100.1')).toBe(true);
+  });
+});
+
+// ── RDAP toggle ───────────────────────────────────────────────────────────────
+
+describe('ProxyEnricher – RDAP toggle', () => {
+  it('getRdapInfo returns {} immediately when enableRdap is false', async () => {
+    const pe = new ProxyEnricher(undefined, [], false, false);
+    (pe as unknown as { initDone: boolean }).initDone = true;
+    const result = await pe.getRdapInfo('8.8.8.8');
+    expect(result).toEqual({});
+  });
+
+  it('getRdapInfo returns {} for IPv6 even when enableRdap is true', async () => {
+    const pe = new ProxyEnricher(undefined, [], false, true);
+    (pe as unknown as { initDone: boolean }).initDone = true;
+    const result = await pe.getRdapInfo('2001:db8::1');
+    expect(result).toEqual({});
+  });
+
+  it('classifyAll rdapInfo is {} when RDAP is disabled', async () => {
+    const pe = new ProxyEnricher(undefined, [], false, false);
+    (pe as unknown as { initDone: boolean }).initDone = true;
+    const result = await pe.classifyAll('193.138.218.5');
+    expect(result.rdapInfo).toEqual({});
+    expect(result.isVpn).toBe(true);
+  });
+
+  it('enableRdap defaults to true', () => {
+    const pe = new ProxyEnricher();
+    expect((pe as unknown as { enableRdap: boolean }).enableRdap).toBe(true);
   });
 });

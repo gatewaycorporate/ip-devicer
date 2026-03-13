@@ -2,6 +2,7 @@ import type { IpEnrichment, IpSnapshot } from '../../types.js';
 
 interface ReputationInput extends Omit<IpEnrichment, 'riskScore' | 'riskFactors' | 'consistencyScore'> {
   deviceHistory: IpSnapshot[];
+  rdapInfo?: { asn?: number; asnOrg?: string };
 }
 
 const WEIGHTS = {
@@ -12,7 +13,40 @@ const WEIGHTS = {
   impossibleTravel: 20,
   newCountry: 10,
   newAsn: 5,
+  rdapSuspectOrg: 10,
 } as const;
+
+/**
+ * Known VPN registrant and commercial proxy provider org name keywords.
+ * Matched case-insensitively against the `asnOrg` returned by RDAP.
+ */
+const RDAP_SUSPECT_ORG_KEYWORDS = [
+  // VPN providers
+  'mullvad', '31173 services',
+  'proton ag', 'protonvpn',
+  'nordvpn', 'tefincom', 'green floid',
+  'expressvpn', 'express vpn',
+  'surfshark', 'amarutu',
+  'ipvanish', 'stackpath',
+  'hidemyass', 'privax',
+  'airvpn',
+  'tunnelbear',
+  'vyprvpn', 'goldenfrog',
+  'windscribe',
+  // Proxy providers
+  'luminati', 'bright data',
+  'smartproxy',
+  'oxylabs', 'code200',
+  'packetstream',
+  'netnut',
+  'iproyal',
+  'webshare',
+] as const;
+
+function hasSuspectOrg(asnOrg: string): boolean {
+  const lower = asnOrg.toLowerCase();
+  return RDAP_SUSPECT_ORG_KEYWORDS.some((kw) => lower.includes(kw));
+}
 
 export function computeRiskScore(
   input: ReputationInput,
@@ -29,6 +63,11 @@ export function computeRiskScore(
   if (input.isHosting) { score += WEIGHTS.hosting; factors.push('hosting_ip'); }
   if (input.impossibleTravel) { score += WEIGHTS.impossibleTravel; factors.push('impossible_travel'); }
 
+  if (input.rdapInfo?.asnOrg && hasSuspectOrg(input.rdapInfo.asnOrg)) {
+    score += WEIGHTS.rdapSuspectOrg;
+    factors.push('rdap_suspect_org');
+  }
+
   if (input.deviceHistory.length > 0) {
     const lastCountry = input.deviceHistory[0]?.enrichment?.country;
     if (lastCountry && input.country && lastCountry !== input.country) {
@@ -36,8 +75,10 @@ export function computeRiskScore(
       factors.push('new_country');
     }
 
+    // Use RDAP asn as fallback when MaxMind is not configured
+    const effectiveAsn = input.asn ?? input.rdapInfo?.asn;
     const lastAsn = input.deviceHistory[0]?.enrichment?.asn;
-    if (lastAsn !== undefined && input.asn !== undefined && lastAsn !== input.asn) {
+    if (lastAsn !== undefined && effectiveAsn !== undefined && lastAsn !== effectiveAsn) {
       score += WEIGHTS.newAsn;
       factors.push('new_asn');
     }
