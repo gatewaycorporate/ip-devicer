@@ -18,6 +18,7 @@ ip-devicer is designed to integrate seamlessly with FP-Devicer by use of the
 `registerWith` helper.
 
 ```typescript
+import { createInMemoryAdapter, DeviceManager } from "devicer.js";
 import { IpManager } from "ip-devicer";
 
 const deviceManager = new DeviceManager(createInMemoryAdapter());
