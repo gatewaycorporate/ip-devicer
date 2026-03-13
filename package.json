@@ -1,6 +1,6 @@
 {
   "name": "ip-devicer",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "type": "module",
   "description": "IP Intelligence Middleware for the FP-Devicer Intelligence Suite",
   "main": "./dist/main.js",
