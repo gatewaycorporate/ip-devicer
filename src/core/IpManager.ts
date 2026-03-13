@@ -45,9 +45,25 @@ interface DeviceManagerLike {
     data: unknown,
     context?: Record<string, unknown>,
   ): Promise<IdentifyResult>;
+  registerIdentifyPostProcessor?(
+    name: string,
+    processor: (payload: {
+      result: IdentifyResult;
+      context?: Record<string, unknown>;
+    }) => Promise<{
+      result?: Record<string, unknown>;
+      enrichmentInfo?: Record<string, unknown>;
+      logMeta?: Record<string, unknown>;
+    } | void> | {
+      result?: Record<string, unknown>;
+      enrichmentInfo?: Record<string, unknown>;
+      logMeta?: Record<string, unknown>;
+    } | void,
+  ): () => void;
 }
 
 export class IpManager {
+  private static readonly DEVICE_MANAGER_PLUGIN_NAME = 'ip';
   private readonly geo: GeoEnricher;
   private readonly proxy: ProxyEnricher;
   private storage: IpStorage;
@@ -261,6 +277,52 @@ export class IpManager {
    * will automatically enrich the result with IP signals.
    */
   registerWith(deviceManager: DeviceManagerLike): void {
+    if (typeof deviceManager.registerIdentifyPostProcessor === 'function') {
+      deviceManager.registerIdentifyPostProcessor(
+        IpManager.DEVICE_MANAGER_PLUGIN_NAME,
+        async ({ result, context }) => {
+          const ctx = (context ?? {}) as IpIdentifyContext;
+          if (!ctx.ip) {
+            return;
+          }
+
+          const { enrichment, riskDelta } = await this.enrich(ctx.ip, result.deviceId);
+
+          return {
+            result: {
+              ipEnrichment: enrichment,
+              ipRiskDelta: riskDelta,
+            },
+            enrichmentInfo: {
+              country: enrichment.country,
+              asn: enrichment.asn,
+              riskScore: enrichment.riskScore,
+              riskDelta,
+              consistencyScore: enrichment.consistencyScore,
+              impossibleTravel: enrichment.impossibleTravel,
+              isProxy: enrichment.isProxy,
+              isVpn: enrichment.isVpn,
+              isTor: enrichment.isTor,
+              isHosting: enrichment.isHosting,
+            },
+            logMeta: {
+              riskScore: enrichment.riskScore,
+              riskDelta,
+              consistencyScore: enrichment.consistencyScore,
+              impossibleTravel: enrichment.impossibleTravel,
+              networkFlags: {
+                isProxy: enrichment.isProxy,
+                isVpn: enrichment.isVpn,
+                isTor: enrichment.isTor,
+                isHosting: enrichment.isHosting,
+              },
+            },
+          };
+        },
+      );
+      return;
+    }
+
     const original = deviceManager.identify.bind(deviceManager);
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     const self = this;

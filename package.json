@@ -46,7 +46,7 @@
     "vitest": "^3.2.4"
   },
   "peerDependencies": {
-    "devicer.js": "^1.5.9",
+    "devicer.js": "^1.5.10",
     "better-sqlite3": "^12.6.2",
     "ioredis": "^5.10.0",
     "pg": "^8.20.0"
