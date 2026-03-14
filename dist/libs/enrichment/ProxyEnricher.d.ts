@@ -20,9 +20,18 @@ export declare class ProxyEnricher {
     private fetchTorExitNodes;
     private loadProxyFiles;
     isTor(ip: string): boolean;
-    isVpn(ip: string): boolean;
-    isProxy(ip: string): boolean;
-    isHosting(ip: string): boolean;
+    isVpn(ip: string, rdapInfo?: {
+        asn?: number;
+        asnOrg?: string;
+    }): Promise<boolean>;
+    isProxy(ip: string, rdapInfo?: {
+        asn?: number;
+        asnOrg?: string;
+    }): Promise<boolean>;
+    isHosting(ip: string, rdapInfo?: {
+        asn?: number;
+        asnOrg?: string;
+    }): Promise<boolean>;
     private getAiAgentMatch;
     isAiAgent(ip: string): AgentInfo;
     /**

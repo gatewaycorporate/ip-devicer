@@ -95,6 +95,43 @@ const DEFAULT_PROXY_CIDRS = [
     // GiglinxProxy / proxy.sh
     '46.165.240.0/21',
 ];
+/** RDAP org-name patterns for VPN provider fallback detection */
+const VPN_ORG_PATTERNS = [
+    /mullvad/i,
+    /protonvpn/i,
+    /nordvpn|tefincom/i,
+    /expressvpn/i,
+    /ipvanish/i,
+    /surfshark/i,
+    /windscribe/i,
+    /privateinternetaccess|pia-/i,
+    /vyprvpn|goldenfrog/i,
+    /tunnelbear/i,
+    /airvpn/i,
+    /hidemyass|privax/i,
+];
+/** RDAP org-name patterns for proxy provider fallback detection */
+const PROXY_ORG_PATTERNS = [
+    /brightdata|luminati/i,
+    /smartproxy/i,
+    /oxylabs|code200/i,
+    /packetstream/i,
+    /netnut/i,
+    /proxymesh/i,
+    /iproyal/i,
+    /webshare/i,
+];
+/** RDAP org-name patterns for hosting/cloud provider fallback detection */
+const HOSTING_ORG_PATTERNS = [
+    /\bamazon\b|\baws\b/i,
+    /\bgoogle\b/i,
+    /\bmicrosoft\b|\bmsft\b|\bazure\b/i,
+    /digitalocean/i,
+    /\blinode\b|\bakamai\b/i,
+    /\bovh\b/i,
+    /\bhetzner\b/i,
+    /\bvultr\b|\bchoopa\b/i,
+];
 /** Well-known hosting/cloud ASN CIDR prefixes (representative subset) */
 const HOSTING_CIDRS = [
     // AWS
@@ -222,14 +259,23 @@ export class ProxyEnricher {
     isTor(ip) {
         return this.torExitNodes.has(ip);
     }
-    isVpn(ip) {
-        return this.vpnCidrs.some((cidr) => isInCidr(ip, cidr));
+    async isVpn(ip, rdapInfo) {
+        if (this.vpnCidrs.some((cidr) => isInCidr(ip, cidr)))
+            return true;
+        const { asnOrg } = rdapInfo ?? await this.getRdapInfo(ip);
+        return asnOrg ? VPN_ORG_PATTERNS.some((p) => p.test(asnOrg)) : false;
     }
-    isProxy(ip) {
-        return this.proxyCidrs.some((cidr) => isInCidr(ip, cidr));
+    async isProxy(ip, rdapInfo) {
+        if (this.proxyCidrs.some((cidr) => isInCidr(ip, cidr)))
+            return true;
+        const { asnOrg } = rdapInfo ?? await this.getRdapInfo(ip);
+        return asnOrg ? PROXY_ORG_PATTERNS.some((p) => p.test(asnOrg)) : false;
     }
-    isHosting(ip) {
-        return this.hostingCidrs.some((cidr) => isInCidr(ip, cidr));
+    async isHosting(ip, rdapInfo) {
+        if (this.hostingCidrs.some((cidr) => isInCidr(ip, cidr)))
+            return true;
+        const { asnOrg } = rdapInfo ?? await this.getRdapInfo(ip);
+        return asnOrg ? HOSTING_ORG_PATTERNS.some((p) => p.test(asnOrg)) : false;
     }
     getAiAgentMatch(ip) {
         let bestMatch = null;
@@ -308,13 +354,19 @@ export class ProxyEnricher {
         }
     }
     async classifyAll(ip) {
+        const rdapInfo = await this.getRdapInfo(ip);
+        const [isVpn, isProxy, isHosting] = await Promise.all([
+            this.isVpn(ip, rdapInfo),
+            this.isProxy(ip, rdapInfo),
+            this.isHosting(ip, rdapInfo),
+        ]);
         return {
             isTor: this.isTor(ip),
-            isVpn: this.isVpn(ip),
-            isProxy: this.isProxy(ip),
-            isHosting: this.isHosting(ip),
+            isVpn,
+            isProxy,
+            isHosting,
             agentInfo: this.isAiAgent(ip),
-            rdapInfo: await this.getRdapInfo(ip),
+            rdapInfo,
         };
     }
     async refresh() {
