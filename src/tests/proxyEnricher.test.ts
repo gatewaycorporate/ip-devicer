@@ -1,4 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
+import { rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { ProxyEnricher } from '../libs/enrichment/ProxyEnricher.js';
 
 // Helper: build an enricher with network disabled and initDone pre-set
@@ -7,6 +10,16 @@ function makeEnricher(hasLicense = false): ProxyEnricher {
   (pe as unknown as { initDone: boolean }).initDone = true;
   return pe;
 }
+
+const originalFetch = globalThis.fetch;
+
+beforeEach(() => {
+  vi.restoreAllMocks();
+});
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
 
 // ── Tor detection ──────────────────────────────────────────────────────────────
 
@@ -194,6 +207,24 @@ describe('ProxyEnricher – classifyAll', () => {
 // ── Licensed file loading appends to defaults ─────────────────────────────────
 
 describe('ProxyEnricher – licensed file loading', () => {
+  it('appends parsed CIDRs from licensed VPN and proxy files', async () => {
+    const vpnFile = join(tmpdir(), `vpn-custom-${Date.now()}.txt`);
+    const proxyFile = join(tmpdir(), `proxy-custom-${Date.now()}.txt`);
+    writeFileSync(vpnFile, '# comment\n10.99.0.0/24\n\n10.99.1.0/24\n');
+    writeFileSync(proxyFile, '10.88.0.0/24\n');
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false }) as typeof fetch;
+
+    const pe = new ProxyEnricher(undefined, [vpnFile, proxyFile], true, false);
+    await pe.init();
+
+    expect(pe.isVpn('10.99.0.1')).toBe(true);
+    expect(pe.isVpn('10.99.1.8')).toBe(true);
+    expect(pe.isProxy('10.88.0.9')).toBe(true);
+
+    rmSync(vpnFile, { force: true });
+    rmSync(proxyFile, { force: true });
+  });
+
   it('appends CIDRs from a licensed VPN file on top of defaults', async () => {
     const { readFileSync } = await import('node:fs');
     const readSpy = vi.spyOn({ readFileSync }, 'readFileSync');
@@ -219,6 +250,14 @@ describe('ProxyEnricher – licensed file loading', () => {
     // Custom entry works too
     expect(pe.isVpn('10.99.0.1')).toBe(true);
   });
+
+  it('skips unreadable proxy files without throwing', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false }) as typeof fetch;
+
+    const pe = new ProxyEnricher(undefined, ['/path/that/does/not/exist.txt'], true, false);
+    await expect(pe.init()).resolves.toBeUndefined();
+    expect(pe.isProxy('85.238.100.1')).toBe(true);
+  });
 });
 
 // ── refresh() ────────────────────────────────────────────────────────────────
@@ -240,6 +279,25 @@ describe('ProxyEnricher – refresh()', () => {
     expect(pe.isVpn('193.138.218.5')).toBe(true);
     expect(pe.isProxy('85.238.100.1')).toBe(true);
   });
+
+  it('restores default AI agent ranges after refresh', async () => {
+    const pe = makeEnricher();
+    (pe as unknown as { aiAgentRanges: Array<{ cidr: string; provider: string; confidence: string }> }).aiAgentRanges = [
+      { cidr: '203.0.113.0/24', provider: 'openai', confidence: 'verified' },
+    ] as never;
+
+    vi.spyOn(pe as unknown as { fetchTorExitNodes: () => Promise<void> }, 'fetchTorExitNodes')
+      .mockResolvedValue(undefined);
+
+    await pe.refresh();
+
+    expect(pe.isAiAgent('203.0.113.10')).toEqual({ isAiAgent: false });
+    expect(pe.isAiAgent('104.210.140.130')).toEqual({
+      isAiAgent: true,
+      aiAgentProvider: 'openai',
+      aiAgentConfidence: 100,
+    });
+  });
 });
 
 // ── RDAP toggle ───────────────────────────────────────────────────────────────
@@ -259,6 +317,86 @@ describe('ProxyEnricher – RDAP toggle', () => {
     expect(result).toEqual({});
   });
 
+  it('parses ARIN RDAP ASN results', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        name: 'EXAMPLE-NET',
+        originASes: ['AS64514'],
+      }),
+    }) as typeof fetch;
+
+    const pe = new ProxyEnricher(undefined, [], false, true);
+    await expect(pe.getRdapInfo('198.51.100.7')).resolves.toEqual({
+      asn: 64514,
+      asnOrg: 'EXAMPLE-NET',
+    });
+  });
+
+  it('falls back to RIPE RDAP on ARIN 404', async () => {
+    globalThis.fetch = vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 404 })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({ name: 'RIPE-EXAMPLE' }),
+      }) as typeof fetch;
+
+    const pe = new ProxyEnricher(undefined, [], false, true);
+    await expect(pe.getRdapInfo('198.51.100.8')).resolves.toEqual({ asnOrg: 'RIPE-EXAMPLE' });
+  });
+
+  it('returns empty RDAP info when RIPE fallback also fails', async () => {
+    globalThis.fetch = vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 404 })
+      .mockResolvedValueOnce({ ok: false, status: 404 }) as typeof fetch;
+
+    const pe = new ProxyEnricher(undefined, [], false, true);
+    await expect(pe.getRdapInfo('198.51.100.10')).resolves.toEqual({});
+  });
+
+  it('returns asnOrg without asn when ARIN omits or invalidates origin AS data', async () => {
+    globalThis.fetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({ name: 'ORG-WITHOUT-ASN' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({ name: 'ORG-BAD-ASN', originASes: ['ASnot-a-number'] }),
+      }) as typeof fetch;
+
+    const pe = new ProxyEnricher(undefined, [], false, true);
+    await expect(pe.getRdapInfo('198.51.100.11')).resolves.toEqual({ asn: undefined, asnOrg: 'ORG-WITHOUT-ASN' });
+    await expect(pe.getRdapInfo('198.51.100.12')).resolves.toEqual({ asn: undefined, asnOrg: 'ORG-BAD-ASN' });
+  });
+
+  it('returns empty RDAP objects when registry payloads omit names', async () => {
+    globalThis.fetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({ originASes: [] }),
+      })
+      .mockResolvedValueOnce({ ok: false, status: 404 })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({}),
+      }) as typeof fetch;
+
+    const pe = new ProxyEnricher(undefined, [], false, true);
+    await expect(pe.getRdapInfo('198.51.100.13')).resolves.toEqual({ asn: undefined, asnOrg: undefined });
+    await expect(pe.getRdapInfo('198.51.100.14')).resolves.toEqual({ asnOrg: undefined });
+  });
+
+  it('returns empty RDAP info for non-404 ARIN responses and network failures', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValueOnce({ ok: false, status: 500 }) as typeof fetch;
+
+    const pe = new ProxyEnricher(undefined, [], false, true);
+    await expect(pe.getRdapInfo('198.51.100.9')).resolves.toEqual({});
+
+    globalThis.fetch = vi.fn().mockRejectedValueOnce(new Error('network down')) as typeof fetch;
+    await expect(pe.getRdapInfo('198.51.100.9')).resolves.toEqual({});
+  });
+
   it('classifyAll rdapInfo is {} when RDAP is disabled', async () => {
     const pe = new ProxyEnricher(undefined, [], false, false);
     (pe as unknown as { initDone: boolean }).initDone = true;
@@ -270,5 +408,93 @@ describe('ProxyEnricher – RDAP toggle', () => {
   it('enableRdap defaults to true', () => {
     const pe = new ProxyEnricher();
     expect((pe as unknown as { enableRdap: boolean }).enableRdap).toBe(true);
+  });
+});
+
+describe('ProxyEnricher – init and AI agent matching branches', () => {
+  it('populates Tor exit nodes from fetched text and does not reinitialize twice', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      text: vi.fn().mockResolvedValue('# comment\n198.51.100.42\n\n198.51.100.43\n'),
+    }) as typeof fetch;
+
+    const pe = new ProxyEnricher(undefined, [], false, false);
+    await pe.init();
+    await pe.init();
+
+    expect(pe.isTor('198.51.100.42')).toBe(true);
+    expect(pe.isTor('198.51.100.43')).toBe(true);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores Tor list fetch failures during init', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('tor list failed')) as typeof fetch;
+
+    const pe = new ProxyEnricher(undefined, [], false, false);
+    await expect(pe.init()).resolves.toBeUndefined();
+    expect(pe.isTor('198.51.100.42')).toBe(false);
+  });
+
+  it('prefers higher confidence AI agent matches and then more specific CIDRs', () => {
+    const pe = makeEnricher();
+    (pe as unknown as { aiAgentRanges: Array<{ cidr: string; provider: string; confidence: string }> }).aiAgentRanges = [
+      { cidr: '198.51.100.0/24', provider: 'anthropic', confidence: 'candidate' },
+      { cidr: '198.51.100.0/24', provider: 'meta', confidence: 'partner-attributed' },
+      { cidr: '198.51.100.128/25', provider: 'openai', confidence: 'partner-attributed' },
+    ] as never;
+
+    expect(pe.isAiAgent('198.51.100.140')).toEqual({
+      isAiAgent: true,
+      aiAgentProvider: 'openai',
+      aiAgentConfidence: 65,
+    });
+
+    expect(pe.isAiAgent('198.51.100.40')).toEqual({
+      isAiAgent: true,
+      aiAgentProvider: 'meta',
+      aiAgentConfidence: 65,
+    });
+  });
+
+  it('keeps the first equal-confidence match when a later CIDR is not more specific', () => {
+    const pe = makeEnricher();
+    (pe as unknown as { aiAgentRanges: Array<{ cidr: string; provider: string; confidence: string }> }).aiAgentRanges = [
+      { cidr: '198.51.100.0/25', provider: 'meta', confidence: 'partner-attributed' },
+      { cidr: '198.51.100.0/25', provider: 'openai', confidence: 'partner-attributed' },
+    ] as never;
+
+    expect(pe.isAiAgent('198.51.100.20')).toEqual({
+      isAiAgent: true,
+      aiAgentProvider: 'meta',
+      aiAgentConfidence: 65,
+    });
+  });
+
+  it('supports /0 CIDRs and ignores malformed CIDRs during AI agent matching', () => {
+    const pe = makeEnricher();
+    (pe as unknown as { aiAgentRanges: Array<{ cidr: string; provider: string; confidence: string }> }).aiAgentRanges = [
+      { cidr: '198.51.100.0', provider: 'anthropic', confidence: 'candidate' },
+      { cidr: '0.0.0.0/0', provider: 'openai', confidence: 'candidate' },
+    ] as never;
+
+    expect(pe.isAiAgent('203.0.113.77')).toEqual({
+      isAiAgent: true,
+      aiAgentProvider: 'openai',
+      aiAgentConfidence: 40,
+    });
+  });
+
+  it('treats empty CIDR prefixes as the least-specific match in tie-breaks', () => {
+    const pe = makeEnricher();
+    (pe as unknown as { aiAgentRanges: Array<{ cidr: string; provider: string; confidence: string }> }).aiAgentRanges = [
+      { cidr: '198.51.100.0/', provider: 'anthropic', confidence: 'candidate' },
+      { cidr: '198.51.100.0/32', provider: 'openai', confidence: 'candidate' },
+    ] as never;
+
+    expect(pe.isAiAgent('198.51.100.0')).toEqual({
+      isAiAgent: true,
+      aiAgentProvider: 'openai',
+      aiAgentConfidence: 40,
+    });
   });
 });
