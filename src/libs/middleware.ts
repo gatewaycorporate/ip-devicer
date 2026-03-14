@@ -23,6 +23,16 @@ export function createIpMiddleware(_ipManager?: IpManager) {
 
 /** Extract real IP respecting up to 2 trusted proxy hops */
 export function resolveIp(req: IncomingMessage): string {
+  const cloudflareIp = req.headers['cf-connecting-ip'];
+  if (cloudflareIp) {
+    return Array.isArray(cloudflareIp) ? cloudflareIp[0] : cloudflareIp;
+  }
+
+  const trueClientIp = req.headers['true-client-ip'];
+  if (trueClientIp) {
+    return Array.isArray(trueClientIp) ? trueClientIp[0] : trueClientIp;
+  }
+
   const realIp = req.headers['x-real-ip'];
   if (realIp) {
     return Array.isArray(realIp) ? realIp[0] : realIp;

@@ -12,6 +12,22 @@ function makeRequest(headers: Record<string, string> = {}, remoteAddress = '127.
 }
 
 describe('resolveIp', () => {
+  it('prefers CF-Connecting-IP over X-Real-IP', () => {
+    const req = makeRequest({
+      'cf-connecting-ip': '198.51.100.10',
+      'x-real-ip': '198.51.100.7',
+    });
+    expect(resolveIp(req)).toBe('198.51.100.10');
+  });
+
+  it('prefers True-Client-IP over X-Real-IP', () => {
+    const req = makeRequest({
+      'true-client-ip': '198.51.100.11',
+      'x-real-ip': '198.51.100.7',
+    });
+    expect(resolveIp(req)).toBe('198.51.100.11');
+  });
+
   it('prefers X-Real-IP over X-Forwarded-For', () => {
     const req = makeRequest({
       'x-real-ip': '198.51.100.7',

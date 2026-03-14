@@ -20,6 +20,14 @@ function getFirstHeaderValue(value) {
     return trimmed ? trimmed : undefined;
 }
 function resolveContextIp(context) {
+    const cloudflareIp = getFirstHeaderValue(context?.headers?.['cf-connecting-ip']);
+    if (cloudflareIp) {
+        return cloudflareIp;
+    }
+    const trueClientIp = getFirstHeaderValue(context?.headers?.['true-client-ip']);
+    if (trueClientIp) {
+        return trueClientIp;
+    }
     const realIp = getFirstHeaderValue(context?.headers?.['x-real-ip']);
     if (realIp) {
         return realIp;
