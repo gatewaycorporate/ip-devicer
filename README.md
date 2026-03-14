@@ -50,9 +50,9 @@ app.post("/identify", async (req, res) => {
 });
 ```
 
-If `ip` is omitted, `ip-devicer` will derive the client IP from request headers,
-preferring `X-Real-IP` and then falling back to the first `X-Forwarded-For`
-address.
+If request headers include `X-Real-IP`, `ip-devicer` will prefer that value over
+a proxy-populated `ip` field. If `X-Real-IP` is absent, it falls back to the
+explicit `ip` value and then the first `X-Forwarded-For` address.
 
 ## Recommended Setup (MaxMind)
 

@@ -20,13 +20,13 @@ function getFirstHeaderValue(value) {
     return trimmed ? trimmed : undefined;
 }
 function resolveContextIp(context) {
-    const explicitIp = context?.ip?.trim();
-    if (explicitIp) {
-        return explicitIp;
-    }
     const realIp = getFirstHeaderValue(context?.headers?.['x-real-ip']);
     if (realIp) {
         return realIp;
+    }
+    const explicitIp = context?.ip?.trim();
+    if (explicitIp) {
+        return explicitIp;
     }
     const forwardedFor = getFirstHeaderValue(context?.headers?.['x-forwarded-for']);
     if (!forwardedFor) {

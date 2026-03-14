@@ -12,6 +12,14 @@ function makeRequest(headers: Record<string, string> = {}, remoteAddress = '127.
 }
 
 describe('resolveIp', () => {
+  it('prefers X-Real-IP over X-Forwarded-For', () => {
+    const req = makeRequest({
+      'x-real-ip': '198.51.100.7',
+      'x-forwarded-for': '203.0.113.5, 10.0.0.1',
+    });
+    expect(resolveIp(req)).toBe('198.51.100.7');
+  });
+
   it('uses X-Forwarded-For first client IP', () => {
     const req = makeRequest({ 'x-forwarded-for': '203.0.113.5, 10.0.0.1' });
     expect(resolveIp(req)).toBe('203.0.113.5');

@@ -23,6 +23,11 @@ export function createIpMiddleware(_ipManager?: IpManager) {
 
 /** Extract real IP respecting up to 2 trusted proxy hops */
 export function resolveIp(req: IncomingMessage): string {
+  const realIp = req.headers['x-real-ip'];
+  if (realIp) {
+    return Array.isArray(realIp) ? realIp[0] : realIp;
+  }
+
   const xff = req.headers['x-forwarded-for'];
   if (xff) {
     const ips = (Array.isArray(xff) ? xff[0] : xff)
@@ -30,11 +35,6 @@ export function resolveIp(req: IncomingMessage): string {
       .map((s) => s.trim());
     // First IP in XFF chain is the client
     if (ips[0]) return ips[0];
-  }
-
-  const realIp = req.headers['x-real-ip'];
-  if (realIp) {
-    return Array.isArray(realIp) ? realIp[0] : realIp;
   }
 
   return (req.socket as { remoteAddress?: string }).remoteAddress ?? 'unknown';

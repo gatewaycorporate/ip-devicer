@@ -125,6 +125,46 @@ describe('IpManager.registerWith', () => {
     expect(manager.getHistory('dev_real_ip')[0]?.ip).toBe('198.51.100.7');
   });
 
+  it('prefers X-Real-IP over context.ip when both are present', async () => {
+    const manager = new IpManager({ enableReputation: false });
+
+    vi.spyOn(
+      (manager as unknown as { geo: { enrich: () => unknown } }).geo,
+      'enrich',
+    ).mockResolvedValue({ country: 'GB', latitude: 51.5, longitude: -0.1 });
+
+    vi.spyOn(
+      (manager as unknown as { proxy: { init: () => unknown } }).proxy,
+      'init',
+    ).mockResolvedValue(undefined);
+
+    vi.spyOn(
+      (manager as unknown as { proxy: { classifyAll: () => unknown } }).proxy,
+      'classifyAll',
+    ).mockReturnValue({ isTor: false, isVpn: false, isProxy: false, isHosting: false });
+
+    const deviceManager = {
+      async identify(_data?: unknown, _ctx?: unknown): Promise<IdentifyResult> {
+        return {
+          deviceId: 'dev_real_ip_overrides_context',
+          confidence: 80,
+          isNewDevice: false,
+          matchConfidence: 80,
+          enrichmentInfo: emptyEnrichmentInfo,
+        };
+      },
+    };
+
+    manager.registerWith(deviceManager);
+
+    await deviceManager.identify({}, {
+      ip: '104.16.132.229',
+      headers: { 'x-real-ip': '198.51.100.8' },
+    });
+
+    expect(manager.getHistory('dev_real_ip_overrides_context')[0]?.ip).toBe('198.51.100.8');
+  });
+
   it('prefers X-Real-IP over X-Forwarded-For when deriving the client IP from headers', async () => {
     const manager = new IpManager({ enableReputation: false });
 
@@ -314,5 +354,60 @@ describe('IpManager.registerWith', () => {
 
     expect(outcome?.result?.ipEnrichment).toBeDefined();
     expect(manager.getHistory('dev_hook_real_ip')[0]?.ip).toBe('203.0.113.45');
+  });
+
+  it('prefers X-Real-IP over context.ip in post-processor mode', async () => {
+    const manager = new IpManager({ enableReputation: false });
+
+    vi.spyOn(
+      (manager as unknown as { geo: { enrich: () => unknown } }).geo,
+      'enrich',
+    ).mockResolvedValue({ country: 'AU', latitude: -33.9, longitude: 151.2 });
+
+    vi.spyOn(
+      (manager as unknown as { proxy: { init: () => unknown } }).proxy,
+      'init',
+    ).mockResolvedValue(undefined);
+
+    vi.spyOn(
+      (manager as unknown as { proxy: { classifyAll: () => unknown } }).proxy,
+      'classifyAll',
+    ).mockReturnValue({ isTor: false, isVpn: false, isProxy: false, isHosting: false });
+
+    let registeredProcessor:
+      | ((payload: { result: IdentifyResult; context?: Record<string, unknown> }) => Promise<{ result?: Record<string, unknown>; enrichmentInfo?: Record<string, unknown>; logMeta?: Record<string, unknown> } | void> | { result?: Record<string, unknown>; enrichmentInfo?: Record<string, unknown>; logMeta?: Record<string, unknown> } | void)
+      | undefined;
+
+    const deviceManager = {
+      identify: vi.fn(async (): Promise<IdentifyResult> => ({
+        deviceId: 'dev_hook_real_ip_overrides_context',
+        confidence: 82,
+        isNewDevice: false,
+        matchConfidence: 82,
+        enrichmentInfo: emptyEnrichmentInfo,
+      })),
+      registerIdentifyPostProcessor: vi.fn((_: string, processor: typeof registeredProcessor) => {
+        registeredProcessor = processor;
+        return () => {};
+      }),
+    };
+
+    manager.registerWith(deviceManager);
+
+    await registeredProcessor!({
+      result: {
+        deviceId: 'dev_hook_real_ip_overrides_context',
+        confidence: 82,
+        isNewDevice: false,
+        matchConfidence: 82,
+        enrichmentInfo: emptyEnrichmentInfo,
+      },
+      context: {
+        ip: '104.16.132.229',
+        headers: { 'x-real-ip': '203.0.113.46' },
+      },
+    });
+
+    expect(manager.getHistory('dev_hook_real_ip_overrides_context')[0]?.ip).toBe('203.0.113.46');
   });
 });
