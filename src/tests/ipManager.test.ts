@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { IpManager } from '../core/IpManager.js';
 import type { IdentifyResult, EnrichedIdentifyResult } from '../types.js';
+import type { IdentifyPostProcessor } from 'devicer.js';
 
 const emptyEnrichmentInfo = {
   plugins: [],
@@ -51,18 +52,18 @@ describe('IpManager.registerWith', () => {
       enrichmentInfo: emptyEnrichmentInfo,
     };
 
+    let storedProcessor: IdentifyPostProcessor | undefined;
     const deviceManager = {
-      async identify(_data: unknown, _ctx?: unknown): Promise<IdentifyResult> {
-        return baseResult;
+      registerIdentifyPostProcessor(_name: string, fn: IdentifyPostProcessor) {
+        storedProcessor = fn;
+        return () => {};
       },
     };
 
     manager.registerWith(deviceManager);
 
-    const result = await deviceManager.identify(
-      {},
-      { ip: '8.8.8.8', userId: 'u1' },
-    ) as EnrichedIdentifyResult;
+    const outcome = await storedProcessor!({ result: baseResult, context: { ip: '8.8.8.8', userId: 'u1' } } as unknown as Parameters<IdentifyPostProcessor>[0]);
+    const result = { ...baseResult, ...outcome?.result } as EnrichedIdentifyResult;
 
     expect(result.deviceId).toBe('dev_abc');
     expect(result.ipEnrichment).toBeDefined();
@@ -90,6 +91,7 @@ describe('IpManager.registerWith', () => {
 
     const deviceManager = {
       async identify(_data?: unknown, _ctx?: unknown): Promise<IdentifyResult> { return baseResult; },
+      registerIdentifyPostProcessor(_name: string, _fn: IdentifyPostProcessor) { return () => {}; },
     };
 
     manager.registerWith(deviceManager);
@@ -118,23 +120,25 @@ describe('IpManager.registerWith', () => {
       'classifyAll',
     ).mockReturnValue(emptyClassification);
 
+    const baseResult: IdentifyResult = {
+      deviceId: 'dev_real_ip',
+      confidence: 80,
+      isNewDevice: false,
+      matchConfidence: 80,
+      enrichmentInfo: emptyEnrichmentInfo,
+    };
+    let storedProcessor: IdentifyPostProcessor | undefined;
     const deviceManager = {
-      async identify(_data?: unknown, _ctx?: unknown): Promise<IdentifyResult> {
-        return {
-          deviceId: 'dev_real_ip',
-          confidence: 80,
-          isNewDevice: false,
-          matchConfidence: 80,
-          enrichmentInfo: emptyEnrichmentInfo,
-        };
+      registerIdentifyPostProcessor(_name: string, fn: IdentifyPostProcessor) {
+        storedProcessor = fn;
+        return () => {};
       },
     };
 
     manager.registerWith(deviceManager);
 
-    const result = await deviceManager.identify({}, {
-      headers: { 'x-real-ip': '198.51.100.7' },
-    }) as EnrichedIdentifyResult;
+    const outcome = await storedProcessor!({ result: baseResult, context: { headers: { 'x-real-ip': '198.51.100.7' } } } as unknown as Parameters<IdentifyPostProcessor>[0]);
+    const result = { ...baseResult, ...outcome?.result } as EnrichedIdentifyResult;
 
     expect(result.ipEnrichment).toBeDefined();
     expect(manager.getHistory('dev_real_ip')).toHaveLength(1);
@@ -159,24 +163,24 @@ describe('IpManager.registerWith', () => {
       'classifyAll',
     ).mockReturnValue(emptyClassification);
 
+    const baseResult: IdentifyResult = {
+      deviceId: 'dev_cf_connecting_ip',
+      confidence: 80,
+      isNewDevice: false,
+      matchConfidence: 80,
+      enrichmentInfo: emptyEnrichmentInfo,
+    };
+    let storedProcessor: IdentifyPostProcessor | undefined;
     const deviceManager = {
-      async identify(_data?: unknown, _ctx?: unknown): Promise<IdentifyResult> {
-        return {
-          deviceId: 'dev_cf_connecting_ip',
-          confidence: 80,
-          isNewDevice: false,
-          matchConfidence: 80,
-          enrichmentInfo: emptyEnrichmentInfo,
-        };
+      registerIdentifyPostProcessor(_name: string, fn: IdentifyPostProcessor) {
+        storedProcessor = fn;
+        return () => {};
       },
     };
 
     manager.registerWith(deviceManager);
 
-    await deviceManager.identify({}, {
-      ip: '104.16.132.229',
-      headers: { 'cf-connecting-ip': '198.51.100.10' },
-    });
+    await storedProcessor!({ result: baseResult, context: { ip: '104.16.132.229', headers: { 'cf-connecting-ip': '198.51.100.10' } } } as unknown as Parameters<IdentifyPostProcessor>[0]);
 
     expect(manager.getHistory('dev_cf_connecting_ip')[0]?.ip).toBe('198.51.100.10');
   });
@@ -199,24 +203,24 @@ describe('IpManager.registerWith', () => {
       'classifyAll',
     ).mockReturnValue(emptyClassification);
 
+    const baseResult: IdentifyResult = {
+      deviceId: 'dev_real_ip_overrides_context',
+      confidence: 80,
+      isNewDevice: false,
+      matchConfidence: 80,
+      enrichmentInfo: emptyEnrichmentInfo,
+    };
+    let storedProcessor: IdentifyPostProcessor | undefined;
     const deviceManager = {
-      async identify(_data?: unknown, _ctx?: unknown): Promise<IdentifyResult> {
-        return {
-          deviceId: 'dev_real_ip_overrides_context',
-          confidence: 80,
-          isNewDevice: false,
-          matchConfidence: 80,
-          enrichmentInfo: emptyEnrichmentInfo,
-        };
+      registerIdentifyPostProcessor(_name: string, fn: IdentifyPostProcessor) {
+        storedProcessor = fn;
+        return () => {};
       },
     };
 
     manager.registerWith(deviceManager);
 
-    await deviceManager.identify({}, {
-      ip: '104.16.132.229',
-      headers: { 'x-real-ip': '198.51.100.8' },
-    });
+    await storedProcessor!({ result: baseResult, context: { ip: '104.16.132.229', headers: { 'x-real-ip': '198.51.100.8' } } } as unknown as Parameters<IdentifyPostProcessor>[0]);
 
     expect(manager.getHistory('dev_real_ip_overrides_context')[0]?.ip).toBe('198.51.100.8');
   });
@@ -239,26 +243,24 @@ describe('IpManager.registerWith', () => {
       'classifyAll',
     ).mockReturnValue(emptyClassification);
 
+    const baseResult: IdentifyResult = {
+      deviceId: 'dev_true_client_ip',
+      confidence: 80,
+      isNewDevice: false,
+      matchConfidence: 80,
+      enrichmentInfo: emptyEnrichmentInfo,
+    };
+    let storedProcessor: IdentifyPostProcessor | undefined;
     const deviceManager = {
-      async identify(_data?: unknown, _ctx?: unknown): Promise<IdentifyResult> {
-        return {
-          deviceId: 'dev_true_client_ip',
-          confidence: 80,
-          isNewDevice: false,
-          matchConfidence: 80,
-          enrichmentInfo: emptyEnrichmentInfo,
-        };
+      registerIdentifyPostProcessor(_name: string, fn: IdentifyPostProcessor) {
+        storedProcessor = fn;
+        return () => {};
       },
     };
 
     manager.registerWith(deviceManager);
 
-    await deviceManager.identify({}, {
-      headers: {
-        'true-client-ip': '198.51.100.11',
-        'x-real-ip': '198.51.100.12',
-      },
-    });
+    await storedProcessor!({ result: baseResult, context: { headers: { 'true-client-ip': '198.51.100.11', 'x-real-ip': '198.51.100.12' } } } as unknown as Parameters<IdentifyPostProcessor>[0]);
 
     expect(manager.getHistory('dev_true_client_ip')[0]?.ip).toBe('198.51.100.11');
   });
@@ -281,26 +283,24 @@ describe('IpManager.registerWith', () => {
       'classifyAll',
     ).mockReturnValue(emptyClassification);
 
+    const baseResult: IdentifyResult = {
+      deviceId: 'dev_real_ip_preferred',
+      confidence: 76,
+      isNewDevice: false,
+      matchConfidence: 76,
+      enrichmentInfo: emptyEnrichmentInfo,
+    };
+    let storedProcessor: IdentifyPostProcessor | undefined;
     const deviceManager = {
-      async identify(_data?: unknown, _ctx?: unknown): Promise<IdentifyResult> {
-        return {
-          deviceId: 'dev_real_ip_preferred',
-          confidence: 76,
-          isNewDevice: false,
-          matchConfidence: 76,
-          enrichmentInfo: emptyEnrichmentInfo,
-        };
+      registerIdentifyPostProcessor(_name: string, fn: IdentifyPostProcessor) {
+        storedProcessor = fn;
+        return () => {};
       },
     };
 
     manager.registerWith(deviceManager);
 
-    await deviceManager.identify({}, {
-      headers: {
-        'x-real-ip': '198.51.100.9',
-        'x-forwarded-for': '203.0.113.5, 10.0.0.1',
-      },
-    });
+    await storedProcessor!({ result: baseResult, context: { headers: { 'x-real-ip': '198.51.100.9', 'x-forwarded-for': '203.0.113.5, 10.0.0.1' } } } as unknown as Parameters<IdentifyPostProcessor>[0]);
 
     expect(manager.getHistory('dev_real_ip_preferred')[0]?.ip).toBe('198.51.100.9');
   });
@@ -323,21 +323,24 @@ describe('IpManager.registerWith', () => {
       'classifyAll',
     ).mockReturnValue(emptyClassification);
 
+    const baseResult: IdentifyResult = {
+      deviceId: 'dev_hist',
+      confidence: 95,
+      isNewDevice: false,
+      matchConfidence: 90,
+      enrichmentInfo: emptyEnrichmentInfo,
+    };
+    let storedProcessor: IdentifyPostProcessor | undefined;
     const deviceManager = {
-      async identify(_data?: unknown, _ctx?: unknown): Promise<IdentifyResult> {
-        return {
-          deviceId: 'dev_hist',
-          confidence: 95,
-          isNewDevice: false,
-          matchConfidence: 90,
-          enrichmentInfo: emptyEnrichmentInfo,
-        };
+      registerIdentifyPostProcessor(_name: string, fn: IdentifyPostProcessor) {
+        storedProcessor = fn;
+        return () => {};
       },
     };
     manager.registerWith(deviceManager);
 
-    await deviceManager.identify({}, { ip: '1.2.3.4' });
-    await deviceManager.identify({}, { ip: '5.6.7.8' });
+    await storedProcessor!({ result: baseResult, context: { ip: '1.2.3.4' } } as unknown as Parameters<IdentifyPostProcessor>[0]);
+    await storedProcessor!({ result: baseResult, context: { ip: '5.6.7.8' } } as unknown as Parameters<IdentifyPostProcessor>[0]);
 
     const history = manager.getHistory('dev_hist');
     expect(history).toHaveLength(2);
@@ -365,9 +368,7 @@ describe('IpManager.registerWith', () => {
       agentInfo: { isAiAgent: true, aiAgentProvider: 'openai', aiAgentConfidence: 100 },
     });
 
-    let registeredProcessor:
-      | ((payload: { result: IdentifyResult; context?: Record<string, unknown> }) => Promise<{ result?: Record<string, unknown>; enrichmentInfo?: Record<string, unknown>; logMeta?: Record<string, unknown> } | void> | { result?: Record<string, unknown>; enrichmentInfo?: Record<string, unknown>; logMeta?: Record<string, unknown> } | void)
-      | undefined;
+    let registeredProcessor: IdentifyPostProcessor | undefined;
 
     const deviceManager = {
       identify: vi.fn(async (): Promise<IdentifyResult> => ({
@@ -377,7 +378,7 @@ describe('IpManager.registerWith', () => {
         matchConfidence: 88,
         enrichmentInfo: emptyEnrichmentInfo,
       })),
-      registerIdentifyPostProcessor: vi.fn((name: string, processor: typeof registeredProcessor) => {
+      registerIdentifyPostProcessor: vi.fn((name: string, processor: IdentifyPostProcessor) => {
         expect(name).toBe('ip');
         registeredProcessor = processor;
         return () => {};
@@ -395,7 +396,7 @@ describe('IpManager.registerWith', () => {
         enrichmentInfo: emptyEnrichmentInfo,
       },
       context: { ip: '8.8.4.4' },
-    });
+    } as unknown as Parameters<IdentifyPostProcessor>[0]);
 
     expect(deviceManager.registerIdentifyPostProcessor).toHaveBeenCalledTimes(1);
     expect(outcome?.result?.ipEnrichment).toBeDefined();
@@ -431,9 +432,7 @@ describe('IpManager.registerWith', () => {
       'classifyAll',
     ).mockReturnValue(emptyClassification);
 
-    let registeredProcessor:
-      | ((payload: { result: IdentifyResult; context?: Record<string, unknown> }) => Promise<{ result?: Record<string, unknown>; enrichmentInfo?: Record<string, unknown>; logMeta?: Record<string, unknown> } | void> | { result?: Record<string, unknown>; enrichmentInfo?: Record<string, unknown>; logMeta?: Record<string, unknown> } | void)
-      | undefined;
+    let registeredProcessor: IdentifyPostProcessor | undefined;
 
     const deviceManager = {
       identify: vi.fn(async (): Promise<IdentifyResult> => ({
@@ -443,7 +442,7 @@ describe('IpManager.registerWith', () => {
         matchConfidence: 82,
         enrichmentInfo: emptyEnrichmentInfo,
       })),
-      registerIdentifyPostProcessor: vi.fn((_: string, processor: typeof registeredProcessor) => {
+      registerIdentifyPostProcessor: vi.fn((_: string, processor: IdentifyPostProcessor) => {
         registeredProcessor = processor;
         return () => {};
       }),
@@ -462,7 +461,7 @@ describe('IpManager.registerWith', () => {
       context: {
         headers: { 'x-real-ip': '203.0.113.45' },
       },
-    });
+    } as unknown as Parameters<IdentifyPostProcessor>[0]);
 
     expect(outcome?.result?.ipEnrichment).toBeDefined();
     expect(manager.getHistory('dev_hook_real_ip')[0]?.ip).toBe('203.0.113.45');
@@ -486,9 +485,7 @@ describe('IpManager.registerWith', () => {
       'classifyAll',
     ).mockReturnValue(emptyClassification);
 
-    let registeredProcessor:
-      | ((payload: { result: IdentifyResult; context?: Record<string, unknown> }) => Promise<{ result?: Record<string, unknown>; enrichmentInfo?: Record<string, unknown>; logMeta?: Record<string, unknown> } | void> | { result?: Record<string, unknown>; enrichmentInfo?: Record<string, unknown>; logMeta?: Record<string, unknown> } | void)
-      | undefined;
+    let registeredProcessor: IdentifyPostProcessor | undefined;
 
     const deviceManager = {
       identify: vi.fn(async (): Promise<IdentifyResult> => ({
@@ -498,7 +495,7 @@ describe('IpManager.registerWith', () => {
         matchConfidence: 82,
         enrichmentInfo: emptyEnrichmentInfo,
       })),
-      registerIdentifyPostProcessor: vi.fn((_: string, processor: typeof registeredProcessor) => {
+      registerIdentifyPostProcessor: vi.fn((_: string, processor: IdentifyPostProcessor) => {
         registeredProcessor = processor;
         return () => {};
       }),
@@ -518,7 +515,7 @@ describe('IpManager.registerWith', () => {
         ip: '104.16.132.229',
         headers: { 'cf-connecting-ip': '203.0.113.47' },
       },
-    });
+    } as unknown as Parameters<IdentifyPostProcessor>[0]);
 
     expect(manager.getHistory('dev_hook_cf_connecting_ip')[0]?.ip).toBe('203.0.113.47');
   });
@@ -541,9 +538,7 @@ describe('IpManager.registerWith', () => {
       'classifyAll',
     ).mockReturnValue(emptyClassification);
 
-    let registeredProcessor:
-      | ((payload: { result: IdentifyResult; context?: Record<string, unknown> }) => Promise<{ result?: Record<string, unknown>; enrichmentInfo?: Record<string, unknown>; logMeta?: Record<string, unknown> } | void> | { result?: Record<string, unknown>; enrichmentInfo?: Record<string, unknown>; logMeta?: Record<string, unknown> } | void)
-      | undefined;
+    let registeredProcessor: IdentifyPostProcessor | undefined;
 
     const deviceManager = {
       identify: vi.fn(async (): Promise<IdentifyResult> => ({
@@ -553,7 +548,7 @@ describe('IpManager.registerWith', () => {
         matchConfidence: 82,
         enrichmentInfo: emptyEnrichmentInfo,
       })),
-      registerIdentifyPostProcessor: vi.fn((_: string, processor: typeof registeredProcessor) => {
+      registerIdentifyPostProcessor: vi.fn((_: string, processor: IdentifyPostProcessor) => {
         registeredProcessor = processor;
         return () => {};
       }),
@@ -573,7 +568,7 @@ describe('IpManager.registerWith', () => {
         ip: '104.16.132.229',
         headers: { 'x-real-ip': '203.0.113.46' },
       },
-    });
+    } as unknown as Parameters<IdentifyPostProcessor>[0]);
 
     expect(manager.getHistory('dev_hook_real_ip_overrides_context')[0]?.ip).toBe('203.0.113.46');
   });

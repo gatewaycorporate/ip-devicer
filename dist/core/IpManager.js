@@ -206,68 +206,47 @@ export class IpManager {
      * will automatically enrich the result with IP signals.
      */
     registerWith(deviceManager) {
-        if (typeof deviceManager.registerIdentifyPostProcessor === 'function') {
-            deviceManager.registerIdentifyPostProcessor(IpManager.DEVICE_MANAGER_PLUGIN_NAME, async ({ result, context }) => {
-                const ctx = (context ?? {});
-                const ip = resolveContextIp(ctx);
-                if (!ip) {
-                    return;
-                }
-                const { enrichment, riskDelta } = await this.enrich(ip, result.deviceId);
-                return {
-                    result: {
-                        ipEnrichment: enrichment,
-                        ipRiskDelta: riskDelta,
-                    },
-                    enrichmentInfo: {
-                        country: enrichment.country,
-                        asn: enrichment.asn,
-                        agentInfo: enrichment.agentInfo,
-                        riskScore: enrichment.riskScore,
-                        riskDelta,
-                        consistencyScore: enrichment.consistencyScore,
-                        impossibleTravel: enrichment.impossibleTravel,
+        return deviceManager.registerIdentifyPostProcessor?.(IpManager.DEVICE_MANAGER_PLUGIN_NAME, async ({ result, context }) => {
+            const ctx = (context ?? {});
+            const ip = resolveContextIp(ctx);
+            if (!ip) {
+                return;
+            }
+            const { enrichment, riskDelta } = await this.enrich(ip, result.deviceId);
+            return {
+                result: {
+                    ipEnrichment: enrichment,
+                    ipRiskDelta: riskDelta,
+                },
+                enrichmentInfo: {
+                    country: enrichment.country,
+                    asn: enrichment.asn,
+                    agentInfo: enrichment.agentInfo,
+                    riskScore: enrichment.riskScore,
+                    riskDelta,
+                    consistencyScore: enrichment.consistencyScore,
+                    impossibleTravel: enrichment.impossibleTravel,
+                    isProxy: enrichment.isProxy,
+                    isVpn: enrichment.isVpn,
+                    isTor: enrichment.isTor,
+                    isHosting: enrichment.isHosting,
+                },
+                logMeta: {
+                    riskScore: enrichment.riskScore,
+                    riskDelta,
+                    consistencyScore: enrichment.consistencyScore,
+                    impossibleTravel: enrichment.impossibleTravel,
+                    networkFlags: {
                         isProxy: enrichment.isProxy,
                         isVpn: enrichment.isVpn,
                         isTor: enrichment.isTor,
                         isHosting: enrichment.isHosting,
+                        agentInfo: enrichment.agentInfo,
+                        rdapInfo: enrichment.rdapInfo,
                     },
-                    logMeta: {
-                        riskScore: enrichment.riskScore,
-                        riskDelta,
-                        consistencyScore: enrichment.consistencyScore,
-                        impossibleTravel: enrichment.impossibleTravel,
-                        networkFlags: {
-                            isProxy: enrichment.isProxy,
-                            isVpn: enrichment.isVpn,
-                            isTor: enrichment.isTor,
-                            isHosting: enrichment.isHosting,
-                            agentInfo: enrichment.agentInfo,
-                            rdapInfo: enrichment.rdapInfo,
-                        },
-                    },
-                };
-            });
-            return;
-        }
-        const original = deviceManager.identify.bind(deviceManager);
-        // eslint-disable-next-line @typescript-eslint/no-this-alias
-        const self = this;
-        deviceManager.identify = async function patchedIdentify(data, context) {
-            const result = await original(data, context);
-            const ctx = (context ?? {});
-            const ip = resolveContextIp(ctx);
-            if (!ip)
-                return result;
-            try {
-                const { enrichment, riskDelta } = await self.enrich(ip, result.deviceId);
-                return { ...result, ipEnrichment: enrichment, ipRiskDelta: riskDelta };
-            }
-            catch {
-                // enrichment failure is non-fatal
-                return result;
-            }
-        };
+                },
+            };
+        });
     }
     /** Close and release MaxMind file handles. */
     close() {

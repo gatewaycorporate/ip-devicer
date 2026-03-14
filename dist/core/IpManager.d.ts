@@ -1,25 +1,7 @@
 import { type LicenseTier } from '../libs/license.js';
-import type { IpManagerOptions, IpEnrichment, IpSnapshot, IdentifyResult } from '../types.js';
-/**
- * Structural type for DeviceManager.identify so we avoid a hard dep on
- * devicer.js at runtime while keeping full type safety.
- */
-interface DeviceManagerLike {
-    identify(data: unknown, context?: Record<string, unknown>): Promise<IdentifyResult>;
-    registerIdentifyPostProcessor?(name: string, processor: (payload: {
-        result: IdentifyResult;
-        context?: Record<string, unknown>;
-    }) => Promise<{
-        result?: Record<string, unknown>;
-        enrichmentInfo?: Record<string, unknown>;
-        logMeta?: Record<string, unknown>;
-    } | void> | {
-        result?: Record<string, unknown>;
-        enrichmentInfo?: Record<string, unknown>;
-        logMeta?: Record<string, unknown>;
-    } | void): () => void;
-}
-export declare class IpManager {
+import type { IpManagerOptions, IpEnrichment, IpSnapshot } from '../types.js';
+import type { DeviceManagerPlugin, DeviceManagerLike } from 'devicer.js';
+export declare class IpManager implements DeviceManagerPlugin {
     private static readonly DEVICE_MANAGER_PLUGIN_NAME;
     private readonly geo;
     private readonly proxy;
@@ -62,9 +44,8 @@ export declare class IpManager {
      * `identify` method. Any call to `deviceManager.identify(data, { ip, headers, ... })`
      * will automatically enrich the result with IP signals.
      */
-    registerWith(deviceManager: DeviceManagerLike): void;
+    registerWith(deviceManager: DeviceManagerLike): (() => void) | void;
     /** Close and release MaxMind file handles. */
     close(): void;
 }
-export {};
 //# sourceMappingURL=IpManager.d.ts.map

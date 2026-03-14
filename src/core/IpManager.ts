@@ -19,9 +19,8 @@ import type {
   IpEnrichment,
   IpSnapshot,
   IpIdentifyContext,
-  EnrichedIdentifyResult,
-  IdentifyResult,
 } from '../types.js';
+import type { DeviceManagerPlugin, DeviceManagerLike } from 'devicer.js';
 
 const DEFAULT_IMPOSSIBLE_TRAVEL_KMH = 900;
 
@@ -35,32 +34,6 @@ const LICENSE_INVALID_WARN =
 const DEVICE_LIMIT_WARN =
   `[ip-devicer] Free-tier device limit reached (${FREE_TIER_MAX_DEVICES.toLocaleString()} devices). ` +
   'New device will not be tracked. Upgrade to Pro or Enterprise to remove this limit.'
-
-/**
- * Structural type for DeviceManager.identify so we avoid a hard dep on
- * devicer.js at runtime while keeping full type safety.
- */
-interface DeviceManagerLike {
-  identify(
-    data: unknown,
-    context?: Record<string, unknown>,
-  ): Promise<IdentifyResult>;
-  registerIdentifyPostProcessor?(
-    name: string,
-    processor: (payload: {
-      result: IdentifyResult;
-      context?: Record<string, unknown>;
-    }) => Promise<{
-      result?: Record<string, unknown>;
-      enrichmentInfo?: Record<string, unknown>;
-      logMeta?: Record<string, unknown>;
-    } | void> | {
-      result?: Record<string, unknown>;
-      enrichmentInfo?: Record<string, unknown>;
-      logMeta?: Record<string, unknown>;
-    } | void,
-  ): () => void;
-}
 
 function getFirstHeaderValue(
   value: string | string[] | undefined,
@@ -107,7 +80,7 @@ function resolveContextIp(context?: IpIdentifyContext): string | undefined {
   return clientIp || undefined;
 }
 
-export class IpManager {
+export class IpManager implements DeviceManagerPlugin {
   private static readonly DEVICE_MANAGER_PLUGIN_NAME = 'ip';
   private readonly geo: GeoEnricher;
   private readonly proxy: ProxyEnricher;
@@ -321,82 +294,53 @@ export class IpManager {
    * `identify` method. Any call to `deviceManager.identify(data, { ip, headers, ... })`
    * will automatically enrich the result with IP signals.
    */
-  registerWith(deviceManager: DeviceManagerLike): void {
-    if (typeof deviceManager.registerIdentifyPostProcessor === 'function') {
-      deviceManager.registerIdentifyPostProcessor(
-        IpManager.DEVICE_MANAGER_PLUGIN_NAME,
-        async ({ result, context }) => {
-          const ctx = (context ?? {}) as IpIdentifyContext;
-          const ip = resolveContextIp(ctx);
-          if (!ip) {
-            return;
-          }
+  registerWith(deviceManager: DeviceManagerLike): (() => void) | void {
+    return deviceManager.registerIdentifyPostProcessor?.(
+      IpManager.DEVICE_MANAGER_PLUGIN_NAME,
+      async ({ result, context }) => {
+        const ctx = (context ?? {}) as IpIdentifyContext;
+        const ip = resolveContextIp(ctx);
+        if (!ip) {
+          return;
+        }
 
-          const { enrichment, riskDelta } = await this.enrich(ip, result.deviceId);
+        const { enrichment, riskDelta } = await this.enrich(ip, result.deviceId);
 
-          return {
-            result: {
-              ipEnrichment: enrichment,
-              ipRiskDelta: riskDelta,
-            },
-            enrichmentInfo: {
-              country: enrichment.country,
-              asn: enrichment.asn,
-              agentInfo: enrichment.agentInfo,
-              riskScore: enrichment.riskScore,
-              riskDelta,
-              consistencyScore: enrichment.consistencyScore,
-              impossibleTravel: enrichment.impossibleTravel,
+        return {
+          result: {
+            ipEnrichment: enrichment,
+            ipRiskDelta: riskDelta,
+          },
+          enrichmentInfo: {
+            country: enrichment.country,
+            asn: enrichment.asn,
+            agentInfo: enrichment.agentInfo,
+            riskScore: enrichment.riskScore,
+            riskDelta,
+            consistencyScore: enrichment.consistencyScore,
+            impossibleTravel: enrichment.impossibleTravel,
+            isProxy: enrichment.isProxy,
+            isVpn: enrichment.isVpn,
+            isTor: enrichment.isTor,
+            isHosting: enrichment.isHosting,
+          },
+          logMeta: {
+            riskScore: enrichment.riskScore,
+            riskDelta,
+            consistencyScore: enrichment.consistencyScore,
+            impossibleTravel: enrichment.impossibleTravel,
+            networkFlags: {
               isProxy: enrichment.isProxy,
               isVpn: enrichment.isVpn,
               isTor: enrichment.isTor,
               isHosting: enrichment.isHosting,
+              agentInfo: enrichment.agentInfo,
+              rdapInfo: enrichment.rdapInfo,
             },
-            logMeta: {
-              riskScore: enrichment.riskScore,
-              riskDelta,
-              consistencyScore: enrichment.consistencyScore,
-              impossibleTravel: enrichment.impossibleTravel,
-              networkFlags: {
-                isProxy: enrichment.isProxy,
-                isVpn: enrichment.isVpn,
-                isTor: enrichment.isTor,
-                isHosting: enrichment.isHosting,
-                agentInfo: enrichment.agentInfo,
-                rdapInfo: enrichment.rdapInfo,
-              },
-            },
-          };
-        },
-      );
-      return;
-    }
-
-    const original = deviceManager.identify.bind(deviceManager);
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const self = this;
-
-    deviceManager.identify = async function patchedIdentify(
-      data: unknown,
-      context?: Record<string, unknown>,
-    ): Promise<EnrichedIdentifyResult> {
-      const result = await original(data, context);
-      const ctx = (context ?? {}) as IpIdentifyContext;
-      const ip = resolveContextIp(ctx);
-
-      if (!ip) return result;
-
-      try {
-        const { enrichment, riskDelta } = await self.enrich(
-          ip,
-          result.deviceId,
-        );
-        return { ...result, ipEnrichment: enrichment, ipRiskDelta: riskDelta };
-      } catch {
-        // enrichment failure is non-fatal
-        return result;
-      }
-    };
+          },
+        };
+      },
+    );
   }
 
   /** Close and release MaxMind file handles. */
