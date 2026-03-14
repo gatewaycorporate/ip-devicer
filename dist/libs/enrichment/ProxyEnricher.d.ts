@@ -1,4 +1,9 @@
-import { type AiAgentRange } from './agents.js';
+import { type AiAgentProvider } from './agents.js';
+type AgentInfo = {
+    isAiAgent: boolean;
+    aiAgentProvider?: AiAgentProvider;
+    aiAgentConfidence?: number;
+};
 export declare class ProxyEnricher {
     private readonly torExitListUrl;
     private readonly proxyListPaths;
@@ -18,8 +23,8 @@ export declare class ProxyEnricher {
     isVpn(ip: string): boolean;
     isProxy(ip: string): boolean;
     isHosting(ip: string): boolean;
-    getAiAgentMatch(ip: string): Pick<AiAgentRange, 'provider' | 'confidence' | 'source'> | null;
-    isAiAgent(ip: string): boolean;
+    private getAiAgentMatch;
+    isAiAgent(ip: string): AgentInfo;
     /**
      * Query ARIN RDAP (falling back to RIPE on 404) to look up the registered
      * network name and origin ASN for a given IPv4 address.
@@ -32,13 +37,11 @@ export declare class ProxyEnricher {
         asnOrg?: string;
     }>;
     classifyAll(ip: string): Promise<{
-        isAiAgent: boolean;
-        aiAgentProvider?: AiAgentRange['provider'];
-        aiAgentConfidence?: AiAgentRange['confidence'];
         isTor: boolean;
         isVpn: boolean;
         isProxy: boolean;
         isHosting: boolean;
+        agentInfo: AgentInfo;
         rdapInfo: {
             asn?: number;
             asnOrg?: string;
@@ -46,4 +49,5 @@ export declare class ProxyEnricher {
     }>;
     refresh(): Promise<void>;
 }
+export {};
 //# sourceMappingURL=ProxyEnricher.d.ts.map

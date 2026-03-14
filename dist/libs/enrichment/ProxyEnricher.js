@@ -147,6 +147,16 @@ function isInCidr(ip, cidr) {
     const mask = prefix === 0 ? 0 : (~0 << (32 - prefix)) >>> 0;
     return (ipToNumber(ip) & mask) >>> 0 === (ipToNumber(base) & mask) >>> 0;
 }
+function getCidrPrefixLength(cidr) {
+    const prefixStr = cidr.split('/')[1];
+    return prefixStr ? parseInt(prefixStr, 10) : 0;
+}
+const AI_AGENT_CONFIDENCE_SCORES = {
+    verified: 100,
+    'rdap-attributed': 85,
+    'partner-attributed': 65,
+    candidate: 40,
+};
 export class ProxyEnricher {
     torExitListUrl;
     proxyListPaths;
@@ -222,17 +232,41 @@ export class ProxyEnricher {
         return this.hostingCidrs.some((cidr) => isInCidr(ip, cidr));
     }
     getAiAgentMatch(ip) {
-        const match = this.aiAgentRanges.find((entry) => isInCidr(ip, entry.cidr));
-        if (!match)
-            return null;
-        return {
-            provider: match.provider,
-            confidence: match.confidence,
-            source: match.source,
-        };
+        let bestMatch = null;
+        for (const entry of this.aiAgentRanges) {
+            if (!isInCidr(ip, entry.cidr)) {
+                continue;
+            }
+            if (bestMatch === null) {
+                bestMatch = entry;
+                continue;
+            }
+            const bestScore = AI_AGENT_CONFIDENCE_SCORES[bestMatch.confidence];
+            const entryScore = AI_AGENT_CONFIDENCE_SCORES[entry.confidence];
+            if (entryScore > bestScore) {
+                bestMatch = entry;
+                continue;
+            }
+            if (entryScore === bestScore) {
+                const bestPrefix = getCidrPrefixLength(bestMatch.cidr);
+                const entryPrefix = getCidrPrefixLength(entry.cidr);
+                if (entryPrefix > bestPrefix) {
+                    bestMatch = entry;
+                }
+            }
+        }
+        return bestMatch;
     }
     isAiAgent(ip) {
-        return this.getAiAgentMatch(ip) !== null;
+        const match = this.getAiAgentMatch(ip);
+        if (!match) {
+            return { isAiAgent: false };
+        }
+        return {
+            isAiAgent: true,
+            aiAgentProvider: match.provider,
+            aiAgentConfidence: AI_AGENT_CONFIDENCE_SCORES[match.confidence],
+        };
     }
     /**
      * Query ARIN RDAP (falling back to RIPE on 404) to look up the registered
@@ -274,15 +308,12 @@ export class ProxyEnricher {
         }
     }
     async classifyAll(ip) {
-        const aiAgentMatch = this.getAiAgentMatch(ip);
         return {
-            isAiAgent: aiAgentMatch !== null,
-            aiAgentProvider: aiAgentMatch?.provider,
-            aiAgentConfidence: aiAgentMatch?.confidence,
             isTor: this.isTor(ip),
             isVpn: this.isVpn(ip),
             isProxy: this.isProxy(ip),
             isHosting: this.isHosting(ip),
+            agentInfo: this.isAiAgent(ip),
             rdapInfo: await this.getRdapInfo(ip),
         };
     }

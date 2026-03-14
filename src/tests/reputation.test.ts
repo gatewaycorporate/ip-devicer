@@ -45,6 +45,24 @@ describe('computeRiskScore', () => {
     expect(factors).toContain('impossible_travel');
   });
 
+  it('scores verified AI agent traffic at 15', () => {
+    const { score, factors } = computeRiskScore({
+      ...baseEnrichment,
+      agentInfo: { isAiAgent: true, aiAgentProvider: 'openai', aiAgentConfidence: 100 },
+    }, true);
+    expect(score).toBe(15);
+    expect(factors).toContain('ai_agent_traffic');
+  });
+
+  it('scores lower-confidence AI agent traffic at 5', () => {
+    const { score, factors } = computeRiskScore({
+      ...baseEnrichment,
+      agentInfo: { isAiAgent: true, aiAgentProvider: 'anthropic', aiAgentConfidence: 40 },
+    }, true);
+    expect(score).toBe(5);
+    expect(factors).toContain('ai_agent_traffic');
+  });
+
   it('adds new_country when country differs from history', () => {
     const history: IpSnapshot[] = [{
       id: '1', deviceId: 'd1', timestamp: new Date(), ip: '1.2.3.4',
@@ -158,5 +176,17 @@ describe('computeRiskScore – rdapInfo integration', () => {
       true,
     );
     expect(score).toBe(100);
+  });
+
+  it('ai_agent_traffic is not scored when reputation is disabled', () => {
+    const { score, factors } = computeRiskScore(
+      {
+        ...baseEnrichment,
+        agentInfo: { isAiAgent: true, aiAgentProvider: 'openai', aiAgentConfidence: 100 },
+      },
+      false,
+    );
+    expect(score).toBe(0);
+    expect(factors).toHaveLength(0);
   });
 });

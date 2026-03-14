@@ -49,6 +49,11 @@ export interface IpEnrichment extends GeoData {
     isVpn: boolean;
     isTor: boolean;
     isHosting: boolean;
+    agentInfo?: {
+        isAiAgent: boolean;
+        aiAgentProvider?: string;
+        aiAgentConfidence?: number;
+    };
     rdapInfo: {
         asn?: number;
         asnOrg?: string;

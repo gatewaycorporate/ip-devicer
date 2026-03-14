@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import {
   DEFAULT_AI_AGENT_RANGES,
+  type AiAgentConfidence,
+  type AiAgentProvider,
   type AiAgentRange,
 } from './agents.js';
 
@@ -156,6 +158,24 @@ function isInCidr(ip: string, cidr: string): boolean {
   return (ipToNumber(ip) & mask) >>> 0 === (ipToNumber(base) & mask) >>> 0;
 }
 
+function getCidrPrefixLength(cidr: string): number {
+  const prefixStr = cidr.split('/')[1];
+  return prefixStr ? parseInt(prefixStr, 10) : 0;
+}
+
+const AI_AGENT_CONFIDENCE_SCORES: Record<AiAgentConfidence, number> = {
+  verified: 100,
+  'rdap-attributed': 85,
+  'partner-attributed': 65,
+  candidate: 40,
+};
+
+type AgentInfo = {
+  isAiAgent: boolean;
+  aiAgentProvider?: AiAgentProvider;
+  aiAgentConfidence?: number;
+};
+
 export class ProxyEnricher {
   private torExitNodes = new Set<string>();
   private vpnCidrs: string[] = [...DEFAULT_VPN_CIDRS];
@@ -228,19 +248,49 @@ export class ProxyEnricher {
     return this.hostingCidrs.some((cidr) => isInCidr(ip, cidr));
   }
 
-  getAiAgentMatch(ip: string): Pick<AiAgentRange, 'provider' | 'confidence' | 'source'> | null {
-    const match = this.aiAgentRanges.find((entry) => isInCidr(ip, entry.cidr));
-    if (!match) return null;
+  private getAiAgentMatch(ip: string): AiAgentRange | null {
+    let bestMatch: AiAgentRange | null = null;
 
-    return {
-      provider: match.provider,
-      confidence: match.confidence,
-      source: match.source,
-    };
+    for (const entry of this.aiAgentRanges) {
+      if (!isInCidr(ip, entry.cidr)) {
+        continue;
+      }
+
+      if (bestMatch === null) {
+        bestMatch = entry;
+        continue;
+      }
+
+      const bestScore = AI_AGENT_CONFIDENCE_SCORES[bestMatch.confidence];
+      const entryScore = AI_AGENT_CONFIDENCE_SCORES[entry.confidence];
+      if (entryScore > bestScore) {
+        bestMatch = entry;
+        continue;
+      }
+
+      if (entryScore === bestScore) {
+        const bestPrefix = getCidrPrefixLength(bestMatch.cidr);
+        const entryPrefix = getCidrPrefixLength(entry.cidr);
+        if (entryPrefix > bestPrefix) {
+          bestMatch = entry;
+        }
+      }
+    }
+
+    return bestMatch;
   }
 
-  isAiAgent(ip: string): boolean {
-    return this.getAiAgentMatch(ip) !== null;
+  isAiAgent(ip: string): AgentInfo {
+    const match = this.getAiAgentMatch(ip);
+    if (!match) {
+      return { isAiAgent: false };
+    }
+
+    return {
+      isAiAgent: true,
+      aiAgentProvider: match.provider,
+      aiAgentConfidence: AI_AGENT_CONFIDENCE_SCORES[match.confidence],
+    };
   }
 
   /**
@@ -282,25 +332,19 @@ export class ProxyEnricher {
   }
 
   async classifyAll(ip: string): Promise<{
-    isAiAgent: boolean;
-    aiAgentProvider?: AiAgentRange['provider'];
-    aiAgentConfidence?: AiAgentRange['confidence'];
     isTor: boolean;
     isVpn: boolean;
     isProxy: boolean;
     isHosting: boolean;
+    agentInfo: AgentInfo;
     rdapInfo: { asn?: number; asnOrg?: string };
   }> {
-    const aiAgentMatch = this.getAiAgentMatch(ip);
-
     return {
-      isAiAgent: aiAgentMatch !== null,
-      aiAgentProvider: aiAgentMatch?.provider,
-      aiAgentConfidence: aiAgentMatch?.confidence,
       isTor: this.isTor(ip),
       isVpn: this.isVpn(ip),
       isProxy: this.isProxy(ip),
       isHosting: this.isHosting(ip),
+      agentInfo: this.isAiAgent(ip),
       rdapInfo: await this.getRdapInfo(ip),
     };
   }

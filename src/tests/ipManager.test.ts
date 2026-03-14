@@ -8,6 +8,14 @@ const emptyEnrichmentInfo = {
   failures: [],
 };
 
+const emptyClassification = {
+  isTor: false,
+  isVpn: false,
+  isProxy: false,
+  isHosting: false,
+  agentInfo: { isAiAgent: false },
+};
+
 // ── registerWith ───────────────────────────────────────────────
 
 describe('IpManager.registerWith', () => {
@@ -33,7 +41,10 @@ describe('IpManager.registerWith', () => {
     const proxyClassify = vi.spyOn(
       (manager as unknown as { proxy: { classifyAll: () => unknown } }).proxy,
       'classifyAll',
-    ).mockReturnValue({ isTor: false, isVpn: false, isProxy: false, isHosting: false });
+    ).mockReturnValue({
+      ...emptyClassification,
+      agentInfo: { isAiAgent: true, aiAgentProvider: 'openai', aiAgentConfidence: 100 },
+    });
 
     const baseResult: IdentifyResult = {
       deviceId: 'dev_abc', confidence: 90, isNewDevice: false, matchConfidence: 85,
@@ -57,6 +68,11 @@ describe('IpManager.registerWith', () => {
     expect(result.ipEnrichment).toBeDefined();
     expect(result.ipEnrichment?.country).toBe('US');
     expect(result.ipEnrichment?.asn).toBe(15169);
+    expect(result.ipEnrichment?.agentInfo).toEqual({
+      isAiAgent: true,
+      aiAgentProvider: 'openai',
+      aiAgentConfidence: 100,
+    });
     expect(result.ipRiskDelta).toBeDefined();
 
     geoEnrich.mockRestore();
@@ -100,7 +116,7 @@ describe('IpManager.registerWith', () => {
     vi.spyOn(
       (manager as unknown as { proxy: { classifyAll: () => unknown } }).proxy,
       'classifyAll',
-    ).mockReturnValue({ isTor: false, isVpn: false, isProxy: false, isHosting: false });
+    ).mockReturnValue(emptyClassification);
 
     const deviceManager = {
       async identify(_data?: unknown, _ctx?: unknown): Promise<IdentifyResult> {
@@ -141,7 +157,7 @@ describe('IpManager.registerWith', () => {
     vi.spyOn(
       (manager as unknown as { proxy: { classifyAll: () => unknown } }).proxy,
       'classifyAll',
-    ).mockReturnValue({ isTor: false, isVpn: false, isProxy: false, isHosting: false });
+    ).mockReturnValue(emptyClassification);
 
     const deviceManager = {
       async identify(_data?: unknown, _ctx?: unknown): Promise<IdentifyResult> {
@@ -181,7 +197,7 @@ describe('IpManager.registerWith', () => {
     vi.spyOn(
       (manager as unknown as { proxy: { classifyAll: () => unknown } }).proxy,
       'classifyAll',
-    ).mockReturnValue({ isTor: false, isVpn: false, isProxy: false, isHosting: false });
+    ).mockReturnValue(emptyClassification);
 
     const deviceManager = {
       async identify(_data?: unknown, _ctx?: unknown): Promise<IdentifyResult> {
@@ -221,7 +237,7 @@ describe('IpManager.registerWith', () => {
     vi.spyOn(
       (manager as unknown as { proxy: { classifyAll: () => unknown } }).proxy,
       'classifyAll',
-    ).mockReturnValue({ isTor: false, isVpn: false, isProxy: false, isHosting: false });
+    ).mockReturnValue(emptyClassification);
 
     const deviceManager = {
       async identify(_data?: unknown, _ctx?: unknown): Promise<IdentifyResult> {
@@ -263,7 +279,7 @@ describe('IpManager.registerWith', () => {
     vi.spyOn(
       (manager as unknown as { proxy: { classifyAll: () => unknown } }).proxy,
       'classifyAll',
-    ).mockReturnValue({ isTor: false, isVpn: false, isProxy: false, isHosting: false });
+    ).mockReturnValue(emptyClassification);
 
     const deviceManager = {
       async identify(_data?: unknown, _ctx?: unknown): Promise<IdentifyResult> {
@@ -305,7 +321,7 @@ describe('IpManager.registerWith', () => {
     vi.spyOn(
       (manager as unknown as { proxy: { classifyAll: () => unknown } }).proxy,
       'classifyAll',
-    ).mockReturnValue({ isTor: false, isVpn: false, isProxy: false, isHosting: false });
+    ).mockReturnValue(emptyClassification);
 
     const deviceManager = {
       async identify(_data?: unknown, _ctx?: unknown): Promise<IdentifyResult> {
@@ -343,7 +359,11 @@ describe('IpManager.registerWith', () => {
     vi.spyOn(
       (manager as unknown as { proxy: { classifyAll: () => unknown } }).proxy,
       'classifyAll',
-    ).mockReturnValue({ isTor: false, isVpn: true, isProxy: false, isHosting: false });
+    ).mockReturnValue({
+      ...emptyClassification,
+      isVpn: true,
+      agentInfo: { isAiAgent: true, aiAgentProvider: 'openai', aiAgentConfidence: 100 },
+    });
 
     let registeredProcessor:
       | ((payload: { result: IdentifyResult; context?: Record<string, unknown> }) => Promise<{ result?: Record<string, unknown>; enrichmentInfo?: Record<string, unknown>; logMeta?: Record<string, unknown> } | void> | { result?: Record<string, unknown>; enrichmentInfo?: Record<string, unknown>; logMeta?: Record<string, unknown> } | void)
@@ -379,8 +399,18 @@ describe('IpManager.registerWith', () => {
 
     expect(deviceManager.registerIdentifyPostProcessor).toHaveBeenCalledTimes(1);
     expect(outcome?.result?.ipEnrichment).toBeDefined();
-    expect(outcome?.enrichmentInfo).toMatchObject({ country: 'CA', isVpn: true });
-    expect(outcome?.logMeta).toMatchObject({ riskDelta: expect.any(Number) });
+    expect(outcome?.enrichmentInfo).toMatchObject({
+      country: 'CA',
+      isVpn: true,
+      agentInfo: { isAiAgent: true, aiAgentProvider: 'openai', aiAgentConfidence: 100 },
+    });
+    expect(outcome?.logMeta).toMatchObject({
+      riskDelta: expect.any(Number),
+      networkFlags: {
+        isVpn: true,
+        agentInfo: { isAiAgent: true, aiAgentProvider: 'openai', aiAgentConfidence: 100 },
+      },
+    });
   });
 
   it('uses X-Real-IP in post-processor mode when context.ip is omitted', async () => {
@@ -399,7 +429,7 @@ describe('IpManager.registerWith', () => {
     vi.spyOn(
       (manager as unknown as { proxy: { classifyAll: () => unknown } }).proxy,
       'classifyAll',
-    ).mockReturnValue({ isTor: false, isVpn: false, isProxy: false, isHosting: false });
+    ).mockReturnValue(emptyClassification);
 
     let registeredProcessor:
       | ((payload: { result: IdentifyResult; context?: Record<string, unknown> }) => Promise<{ result?: Record<string, unknown>; enrichmentInfo?: Record<string, unknown>; logMeta?: Record<string, unknown> } | void> | { result?: Record<string, unknown>; enrichmentInfo?: Record<string, unknown>; logMeta?: Record<string, unknown> } | void)
@@ -454,7 +484,7 @@ describe('IpManager.registerWith', () => {
     vi.spyOn(
       (manager as unknown as { proxy: { classifyAll: () => unknown } }).proxy,
       'classifyAll',
-    ).mockReturnValue({ isTor: false, isVpn: false, isProxy: false, isHosting: false });
+    ).mockReturnValue(emptyClassification);
 
     let registeredProcessor:
       | ((payload: { result: IdentifyResult; context?: Record<string, unknown> }) => Promise<{ result?: Record<string, unknown>; enrichmentInfo?: Record<string, unknown>; logMeta?: Record<string, unknown> } | void> | { result?: Record<string, unknown>; enrichmentInfo?: Record<string, unknown>; logMeta?: Record<string, unknown> } | void)
@@ -509,7 +539,7 @@ describe('IpManager.registerWith', () => {
     vi.spyOn(
       (manager as unknown as { proxy: { classifyAll: () => unknown } }).proxy,
       'classifyAll',
-    ).mockReturnValue({ isTor: false, isVpn: false, isProxy: false, isHosting: false });
+    ).mockReturnValue(emptyClassification);
 
     let registeredProcessor:
       | ((payload: { result: IdentifyResult; context?: Record<string, unknown> }) => Promise<{ result?: Record<string, unknown>; enrichmentInfo?: Record<string, unknown>; logMeta?: Record<string, unknown> } | void> | { result?: Record<string, unknown>; enrichmentInfo?: Record<string, unknown>; logMeta?: Record<string, unknown> } | void)

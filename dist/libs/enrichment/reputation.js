@@ -7,6 +7,10 @@ const WEIGHTS = {
     newCountry: 10,
     newAsn: 5,
     rdapSuspectOrg: 10,
+    aiAgentVerified: 15,
+    aiAgentAttributed: 10,
+    aiAgentPartner: 7,
+    aiAgentCandidate: 5,
 };
 /**
  * Known VPN registrant and commercial proxy provider org name keywords.
@@ -38,6 +42,21 @@ function hasSuspectOrg(asnOrg) {
     const lower = asnOrg.toLowerCase();
     return RDAP_SUSPECT_ORG_KEYWORDS.some((kw) => lower.includes(kw));
 }
+function getAiAgentWeight(aiAgentConfidence) {
+    if (aiAgentConfidence === undefined) {
+        return WEIGHTS.aiAgentCandidate;
+    }
+    if (aiAgentConfidence >= 90) {
+        return WEIGHTS.aiAgentVerified;
+    }
+    if (aiAgentConfidence >= 70) {
+        return WEIGHTS.aiAgentAttributed;
+    }
+    if (aiAgentConfidence >= 50) {
+        return WEIGHTS.aiAgentPartner;
+    }
+    return WEIGHTS.aiAgentCandidate;
+}
 export function computeRiskScore(input, enabled) {
     if (!enabled)
         return { score: 0, factors: [] };
@@ -62,6 +81,10 @@ export function computeRiskScore(input, enabled) {
     if (input.impossibleTravel) {
         score += WEIGHTS.impossibleTravel;
         factors.push('impossible_travel');
+    }
+    if (input.agentInfo?.isAiAgent) {
+        score += getAiAgentWeight(input.agentInfo.aiAgentConfidence);
+        factors.push('ai_agent_traffic');
     }
     if (input.rdapInfo?.asnOrg && hasSuspectOrg(input.rdapInfo.asnOrg)) {
         score += WEIGHTS.rdapSuspectOrg;

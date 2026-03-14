@@ -222,6 +222,7 @@ export class IpManager {
                     enrichmentInfo: {
                         country: enrichment.country,
                         asn: enrichment.asn,
+                        agentInfo: enrichment.agentInfo,
                         riskScore: enrichment.riskScore,
                         riskDelta,
                         consistencyScore: enrichment.consistencyScore,
@@ -241,7 +242,8 @@ export class IpManager {
                             isVpn: enrichment.isVpn,
                             isTor: enrichment.isTor,
                             isHosting: enrichment.isHosting,
-                            rdapInfo: enrichment.rdapInfo
+                            agentInfo: enrichment.agentInfo,
+                            rdapInfo: enrichment.rdapInfo,
                         },
                     },
                 };

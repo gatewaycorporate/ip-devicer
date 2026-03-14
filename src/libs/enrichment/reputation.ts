@@ -13,6 +13,10 @@ const WEIGHTS = {
   newCountry: 10,
   newAsn: 5,
   rdapSuspectOrg: 10,
+  aiAgentVerified: 15,
+  aiAgentAttributed: 10,
+  aiAgentPartner: 7,
+  aiAgentCandidate: 5,
 } as const;
 
 /**
@@ -47,6 +51,26 @@ function hasSuspectOrg(asnOrg: string): boolean {
   return RDAP_SUSPECT_ORG_KEYWORDS.some((kw) => lower.includes(kw));
 }
 
+function getAiAgentWeight(aiAgentConfidence: number | undefined): number {
+  if (aiAgentConfidence === undefined) {
+    return WEIGHTS.aiAgentCandidate;
+  }
+
+  if (aiAgentConfidence >= 90) {
+    return WEIGHTS.aiAgentVerified;
+  }
+
+  if (aiAgentConfidence >= 70) {
+    return WEIGHTS.aiAgentAttributed;
+  }
+
+  if (aiAgentConfidence >= 50) {
+    return WEIGHTS.aiAgentPartner;
+  }
+
+  return WEIGHTS.aiAgentCandidate;
+}
+
 export function computeRiskScore(
   input: ReputationInput,
   enabled: boolean,
@@ -61,6 +85,10 @@ export function computeRiskScore(
   if (input.isProxy) { score += WEIGHTS.proxy; factors.push('proxy_detected'); }
   if (input.isHosting) { score += WEIGHTS.hosting; factors.push('hosting_ip'); }
   if (input.impossibleTravel) { score += WEIGHTS.impossibleTravel; factors.push('impossible_travel'); }
+  if (input.agentInfo?.isAiAgent) {
+    score += getAiAgentWeight(input.agentInfo.aiAgentConfidence);
+    factors.push('ai_agent_traffic');
+  }
 
   if (input.rdapInfo?.asnOrg && hasSuspectOrg(input.rdapInfo.asnOrg)) {
     score += WEIGHTS.rdapSuspectOrg;

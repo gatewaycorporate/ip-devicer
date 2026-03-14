@@ -297,5 +297,11 @@ function mockGeoAndProxy(mgr: IpManager): void {
   vi.spyOn(
     (mgr as unknown as { proxy: { classifyAll: () => unknown } }).proxy,
     'classifyAll',
-  ).mockReturnValue({ isTor: false, isVpn: false, isProxy: false, isHosting: false });
+  ).mockReturnValue({
+    isTor: false,
+    isVpn: false,
+    isProxy: false,
+    isHosting: false,
+    agentInfo: { isAiAgent: false },
+  });
 }

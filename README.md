@@ -6,8 +6,8 @@
 
 Instantly enrich every `deviceId` with production-grade IP signals: MaxMind
 geolocation (country, city, subdivision, ASN), proxy/VPN/Tor/hosting detection,
-reputation scoring, impossible-travel alerts, and historical consistency
-matching — all 100% self-hosted and invisible to clients.
+AI-agent detection, reputation scoring, impossible-travel alerts, and historical
+consistency matching — all 100% self-hosted and invisible to clients.
 
 Part of the [FP-Devicer](https://github.com/gatewaycorporate/fp-devicer) family
 — invisible to clients and extremely hard to spoof.
@@ -50,10 +50,13 @@ app.post("/identify", async (req, res) => {
 });
 ```
 
-If request headers include `CF-Connecting-IP`, `True-Client-IP`, or
-`X-Real-IP`, `ip-devicer` will prefer those values over a proxy-populated `ip`
-field. If those headers are absent, it falls back to the explicit `ip` value
-and then the first `X-Forwarded-For` address.
+If request headers include `CF-Connecting-IP`, `True-Client-IP`, or `X-Real-IP`,
+`ip-devicer` will prefer those values over a proxy-populated `ip` field. If
+those headers are absent, it falls back to the explicit `ip` value and then the
+first `X-Forwarded-For` address.
+
+Known AI-agent traffic from the conservative default catalog is attached to
+`ipEnrichment.agentInfo` and included in the IpManager logging metadata.
 
 ## Recommended Setup (MaxMind)
 

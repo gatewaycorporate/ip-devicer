@@ -139,14 +139,30 @@ describe('ProxyEnricher – classifyAll', () => {
   it('returns all false for a clean residential IP', async () => {
     const result = await makeEnricher().classifyAll('8.8.8.8');
     expect(result).toEqual({
-      isAiAgent: false,
-      aiAgentProvider: undefined,
-      aiAgentConfidence: undefined,
       isTor: false,
       isVpn: false,
       isProxy: false,
       isHosting: false,
+      agentInfo: {
+        isAiAgent: false,
+      },
       rdapInfo: {},
+    });
+  });
+
+  it('detects a default AI agent range via classifyAll', async () => {
+    const result = await makeEnricher().classifyAll('104.210.140.130');
+    expect(result.agentInfo).toEqual({
+      isAiAgent: true,
+      aiAgentProvider: 'openai',
+      aiAgentConfidence: 100,
+    });
+  });
+
+  it('does not flag extended non-default AI agent ranges by default', async () => {
+    const result = await makeEnricher().classifyAll('104.18.19.80');
+    expect(result.agentInfo).toEqual({
+      isAiAgent: false,
     });
   });
 
