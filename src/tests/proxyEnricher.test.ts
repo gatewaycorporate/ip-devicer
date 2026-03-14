@@ -38,24 +38,24 @@ describe('ProxyEnricher – Tor detection', () => {
 // ── Hosting detection ──────────────────────────────────────────────────────────
 
 describe('ProxyEnricher – hosting detection', () => {
-  it('flags AWS range (52.x.x.x)', () => {
-    expect(makeEnricher().isHosting('52.10.50.1')).toBe(true);
+  it('flags AWS range (52.x.x.x)', async () => {
+    expect(await makeEnricher().isHosting('52.10.50.1')).toBe(true);
   });
 
-  it('flags Azure range (20.x.x.x)', () => {
-    expect(makeEnricher().isHosting('20.56.1.1')).toBe(true);
+  it('flags Azure range (20.x.x.x)', async () => {
+    expect(await makeEnricher().isHosting('20.56.1.1')).toBe(true);
   });
 
-  it('flags GCP range (35.192.x.x)', () => {
-    expect(makeEnricher().isHosting('35.192.1.1')).toBe(true);
+  it('flags GCP range (35.192.x.x)', async () => {
+    expect(await makeEnricher().isHosting('35.192.1.1')).toBe(true);
   });
 
-  it('flags DigitalOcean range (167.99.x.x)', () => {
-    expect(makeEnricher().isHosting('167.99.100.50')).toBe(true);
+  it('flags DigitalOcean range (167.99.x.x)', async () => {
+    expect(await makeEnricher().isHosting('167.99.100.50')).toBe(true);
   });
 
-  it('does not flag a residential IP', () => {
-    expect(makeEnricher().isHosting('203.0.113.5')).toBe(false);
+  it('does not flag a residential IP', async () => {
+    expect(await makeEnricher().isHosting('203.0.113.5')).toBe(false);
   });
 });
 
@@ -86,8 +86,8 @@ describe('ProxyEnricher – default VPN CIDRs (no license required)', () => {
     ['TunnelBear (216.115.17.0/24)',  '216.115.17.77'],
     ['VyprVPN (81.17.16.0/20)',       '81.17.16.1'],
     ['VyprVPN (185.202.220.0/22)',    '185.202.220.4'],
-  ])('detects %s → %s as VPN', (_label, ip) => {
-    expect(pe.isVpn(ip)).toBe(true);
+  ])('detects %s → %s as VPN', async (_label, ip) => {
+    expect(await pe.isVpn(ip)).toBe(true);
   });
 
   it.each([
@@ -95,12 +95,12 @@ describe('ProxyEnricher – default VPN CIDRs (no license required)', () => {
     '1.1.1.1',       // Cloudflare DNS
     '203.0.113.99',  // TEST-NET-3 (documentation)
     '192.0.2.1',     // TEST-NET-1
-  ])('does not flag %s as VPN', (ip) => {
-    expect(pe.isVpn(ip)).toBe(false);
+  ])('does not flag %s as VPN', async (ip) => {
+    expect(await pe.isVpn(ip)).toBe(false);
   });
 
-  it('returns false for an IPv6 address (CIDR list is IPv4-only)', () => {
-    expect(pe.isVpn('2001:db8::1')).toBe(false);
+  it('returns false for an IPv6 address (CIDR list is IPv4-only)', async () => {
+    expect(await pe.isVpn('2001:db8::1')).toBe(false);
   });
 });
 
@@ -128,8 +128,8 @@ describe('ProxyEnricher – default proxy CIDRs (no license required)', () => {
     ['Vultr/Choopa (45.32.0.0/14)',             '45.32.0.200'],
     ['Vultr/Choopa (108.61.0.0/16)',            '108.61.200.5'],
     ['GiglinxProxy (46.165.240.0/21)',          '46.165.240.1'],
-  ])('detects %s → %s as proxy', (_label, ip) => {
-    expect(pe.isProxy(ip)).toBe(true);
+  ])('detects %s → %s as proxy', async (_label, ip) => {
+    expect(await pe.isProxy(ip)).toBe(true);
   });
 
   it.each([
@@ -137,12 +137,12 @@ describe('ProxyEnricher – default proxy CIDRs (no license required)', () => {
     '1.1.1.1',
     '203.0.113.99',
     '192.0.2.1',
-  ])('does not flag %s as proxy', (ip) => {
-    expect(pe.isProxy(ip)).toBe(false);
+  ])('does not flag %s as proxy', async (ip) => {
+    expect(await pe.isProxy(ip)).toBe(false);
   });
 
-  it('returns false for an IPv6 address (CIDR list is IPv4-only)', () => {
-    expect(pe.isProxy('2001:db8::1')).toBe(false);
+  it('returns false for an IPv6 address (CIDR list is IPv4-only)', async () => {
+    expect(await pe.isProxy('2001:db8::1')).toBe(false);
   });
 });
 
@@ -217,9 +217,9 @@ describe('ProxyEnricher – licensed file loading', () => {
     const pe = new ProxyEnricher(undefined, [vpnFile, proxyFile], true, false);
     await pe.init();
 
-    expect(pe.isVpn('10.99.0.1')).toBe(true);
-    expect(pe.isVpn('10.99.1.8')).toBe(true);
-    expect(pe.isProxy('10.88.0.9')).toBe(true);
+    expect(await pe.isVpn('10.99.0.1')).toBe(true);
+    expect(await pe.isVpn('10.99.1.8')).toBe(true);
+    expect(await pe.isProxy('10.88.0.9')).toBe(true);
 
     rmSync(vpnFile, { force: true });
     rmSync(proxyFile, { force: true });
@@ -237,18 +237,18 @@ describe('ProxyEnricher – licensed file loading', () => {
     const sizeBefore = inner.vpnCidrs.length;
     inner.vpnCidrs.push('10.99.0.0/24');
 
-    expect(pe.isVpn('10.99.0.1')).toBe(true);
+    expect(await pe.isVpn('10.99.0.1')).toBe(true);
     expect(inner.vpnCidrs.length).toBeGreaterThan(sizeBefore);
     readSpy.mockRestore();
   });
 
-  it('default VPN entries are still present after custom CIDRs are appended', () => {
+  it('default VPN entries are still present after custom CIDRs are appended', async () => {
     const pe = makeEnricher(true);
     (pe as unknown as { vpnCidrs: string[] }).vpnCidrs.push('10.99.0.0/24');
     // Defaults still apply
-    expect(pe.isVpn('193.138.218.5')).toBe(true);
+    expect(await pe.isVpn('193.138.218.5')).toBe(true);
     // Custom entry works too
-    expect(pe.isVpn('10.99.0.1')).toBe(true);
+    expect(await pe.isVpn('10.99.0.1')).toBe(true);
   });
 
   it('skips unreadable proxy files without throwing', async () => {
@@ -256,7 +256,7 @@ describe('ProxyEnricher – licensed file loading', () => {
 
     const pe = new ProxyEnricher(undefined, ['/path/that/does/not/exist.txt'], true, false);
     await expect(pe.init()).resolves.toBeUndefined();
-    expect(pe.isProxy('85.238.100.1')).toBe(true);
+    expect(await pe.isProxy('85.238.100.1')).toBe(true);
   });
 });
 
@@ -276,8 +276,8 @@ describe('ProxyEnricher – refresh()', () => {
 
     await pe.refresh();
 
-    expect(pe.isVpn('193.138.218.5')).toBe(true);
-    expect(pe.isProxy('85.238.100.1')).toBe(true);
+    expect(await pe.isVpn('193.138.218.5')).toBe(true);
+    expect(await pe.isProxy('85.238.100.1')).toBe(true);
   });
 
   it('restores default AI agent ranges after refresh', async () => {
@@ -496,5 +496,252 @@ describe('ProxyEnricher – init and AI agent matching branches', () => {
       aiAgentProvider: 'openai',
       aiAgentConfidence: 40,
     });
+  });
+});
+
+// ── RDAP org-name fallback ────────────────────────────────────────────────────
+
+/**
+ * Helper: build an enricher with RDAP enabled but no default CIDR matches for
+ * the test IP (198.51.100.x / TEST-NET-3 is never in any production list).
+ */
+function makeRdapEnricher(): ProxyEnricher {
+  const pe = new ProxyEnricher(undefined, [], false, true);
+  (pe as unknown as { initDone: boolean }).initDone = true;
+  return pe;
+}
+
+function mockArinResponse(asnOrg: string): void {
+  globalThis.fetch = vi.fn().mockResolvedValue({
+    ok: true,
+    json: vi.fn().mockResolvedValue({ name: asnOrg }),
+  }) as typeof fetch;
+}
+
+describe('ProxyEnricher – RDAP org-name fallback for isVpn', () => {
+  it.each([
+    'MULLVAD-NET',
+    'protonvpn-servers',
+    'NORDVPN-INFRA',
+    'Tefincom SA',
+    'EXPRESSVPN-ASN',
+    'IPVANISH-HOSTING',
+    'Surfshark-Egress',
+    'WINDSCRIBE-NETWORK',
+    'PIA-PrivateInternetAccess',
+    'goldenfrog-vyprvpn',
+    'TunnelBear Inc',
+    'AIRVPN-AS',
+    'Privax Ltd',
+  ])('isVpn returns true when RDAP asnOrg is "%s"', async (asnOrg) => {
+    mockArinResponse(asnOrg);
+    const pe = makeRdapEnricher();
+    expect(await pe.isVpn('198.51.100.1')).toBe(true);
+  });
+
+  it('isVpn returns false when RDAP asnOrg does not match any VPN pattern', async () => {
+    mockArinResponse('EXAMPLE-RESIDENTIAL');
+    const pe = makeRdapEnricher();
+    expect(await pe.isVpn('198.51.100.1')).toBe(false);
+  });
+
+  it('isVpn returns false when RDAP returns no asnOrg', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({}),
+    }) as typeof fetch;
+    const pe = makeRdapEnricher();
+    expect(await pe.isVpn('198.51.100.1')).toBe(false);
+  });
+
+  it('isVpn returns false when RDAP is disabled and IP is not in any CIDR', async () => {
+    const pe = new ProxyEnricher(undefined, [], false, false);
+    (pe as unknown as { initDone: boolean }).initDone = true;
+    expect(await pe.isVpn('198.51.100.1')).toBe(false);
+  });
+
+  it('isVpn skips RDAP fetch when pre-supplied rdapInfo matches', async () => {
+    const pe = makeRdapEnricher();
+    const fetchSpy = vi.fn() as typeof fetch;
+    globalThis.fetch = fetchSpy;
+    expect(await pe.isVpn('198.51.100.1', { asnOrg: 'MULLVAD-NET' })).toBe(true);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('isVpn skips RDAP fetch when pre-supplied rdapInfo does not match', async () => {
+    const pe = makeRdapEnricher();
+    const fetchSpy = vi.fn() as typeof fetch;
+    globalThis.fetch = fetchSpy;
+    expect(await pe.isVpn('198.51.100.1', { asnOrg: 'EXAMPLE-ISP' })).toBe(false);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('CIDR match takes priority; RDAP is not called when IP is already in VPN list', async () => {
+    const pe = makeRdapEnricher();
+    const fetchSpy = vi.fn() as typeof fetch;
+    globalThis.fetch = fetchSpy;
+    // 193.138.218.5 is inside the Mullvad default CIDR
+    expect(await pe.isVpn('193.138.218.5')).toBe(true);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('ProxyEnricher – RDAP org-name fallback for isProxy', () => {
+  it.each([
+    'BrightData-Residential',
+    'Luminati Networks',
+    'SMARTPROXY-AS',
+    'Oxylabs UAB',
+    'CODE200-proxy',
+    'PacketStream LLC',
+    'NetNut-network',
+    'ProxyMesh-hosting',
+    'IPRoyal-infra',
+    'Webshare Software',
+  ])('isProxy returns true when RDAP asnOrg is "%s"', async (asnOrg) => {
+    mockArinResponse(asnOrg);
+    const pe = makeRdapEnricher();
+    expect(await pe.isProxy('198.51.100.2')).toBe(true);
+  });
+
+  it('isProxy returns false when RDAP asnOrg does not match any proxy pattern', async () => {
+    mockArinResponse('RANDOM-DATACENTER');
+    const pe = makeRdapEnricher();
+    expect(await pe.isProxy('198.51.100.2')).toBe(false);
+  });
+
+  it('isProxy skips RDAP fetch when pre-supplied rdapInfo is given', async () => {
+    const pe = makeRdapEnricher();
+    const fetchSpy = vi.fn() as typeof fetch;
+    globalThis.fetch = fetchSpy;
+    expect(await pe.isProxy('198.51.100.2', { asnOrg: 'Oxylabs UAB' })).toBe(true);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('CIDR match takes priority; RDAP is not called when IP is already in proxy list', async () => {
+    const pe = makeRdapEnricher();
+    const fetchSpy = vi.fn() as typeof fetch;
+    globalThis.fetch = fetchSpy;
+    // 85.238.100.1 is inside the Bright Data default CIDR
+    expect(await pe.isProxy('85.238.100.1')).toBe(true);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('ProxyEnricher – RDAP org-name fallback for isHosting', () => {
+  it.each([
+    ['Amazon Web Services', 'Amazon'],
+    ['Google Cloud Compute', 'Google'],
+    ['Microsoft Azure', 'Microsoft'],
+    ['MSFT-AZURE', 'MSFT'],
+    ['DigitalOcean LLC', 'DigitalOcean'],
+    ['LINODE-AS', 'Linode'],
+    ['Akamai Technologies', 'Akamai'],
+    ['OVH SAS', 'OVH'],
+    ['Hetzner Online GmbH', 'Hetzner'],
+    ['VULTR-AS', 'Vultr'],
+    ['Choopa LLC', 'Choopa'],
+  ])('isHosting returns true when RDAP asnOrg is "%s"', async (asnOrg) => {
+    mockArinResponse(asnOrg);
+    const pe = makeRdapEnricher();
+    expect(await pe.isHosting('198.51.100.3')).toBe(true);
+  });
+
+  it('isHosting returns false when RDAP asnOrg does not match any hosting pattern', async () => {
+    mockArinResponse('RESIDENTIAL-ISP');
+    const pe = makeRdapEnricher();
+    expect(await pe.isHosting('198.51.100.3')).toBe(false);
+  });
+
+  it('isHosting skips RDAP fetch when pre-supplied rdapInfo is given', async () => {
+    const pe = makeRdapEnricher();
+    const fetchSpy = vi.fn() as typeof fetch;
+    globalThis.fetch = fetchSpy;
+    expect(await pe.isHosting('198.51.100.3', { asnOrg: 'Hetzner Online GmbH' })).toBe(true);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('CIDR match takes priority; RDAP is not called when IP is already in hosting list', async () => {
+    const pe = makeRdapEnricher();
+    const fetchSpy = vi.fn() as typeof fetch;
+    globalThis.fetch = fetchSpy;
+    // 52.10.50.1 is inside the AWS default CIDR
+    expect(await pe.isHosting('52.10.50.1')).toBe(true);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('ProxyEnricher – classifyAll RDAP deduplication', () => {
+  it('calls RDAP exactly once per classifyAll invocation', async () => {
+    const arinJson = vi.fn().mockResolvedValue({ name: 'MULLVAD-NET' });
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: arinJson }) as typeof fetch;
+
+    const pe = makeRdapEnricher();
+    const result = await pe.classifyAll('198.51.100.4');
+
+    // fetch called once (ARIN) and the org name propagated to all three methods
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expect(result.isVpn).toBe(true);
+    expect(result.isProxy).toBe(false);
+    expect(result.isHosting).toBe(false);
+    expect(result.rdapInfo).toEqual({ asn: undefined, asnOrg: 'MULLVAD-NET' });
+  });
+
+  it('classifyAll propagates a proxy RDAP match correctly', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({ name: 'BrightData-Residential' }),
+    }) as typeof fetch;
+
+    const pe = makeRdapEnricher();
+    const result = await pe.classifyAll('198.51.100.5');
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expect(result.isProxy).toBe(true);
+    expect(result.isVpn).toBe(false);
+  });
+
+  it('classifyAll propagates a hosting RDAP match correctly', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({ name: 'Hetzner Online GmbH' }),
+    }) as typeof fetch;
+
+    const pe = makeRdapEnricher();
+    const result = await pe.classifyAll('198.51.100.6');
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expect(result.isHosting).toBe(true);
+    expect(result.isVpn).toBe(false);
+    expect(result.isProxy).toBe(false);
+  });
+
+  it('classifyAll returns all false when RDAP returns an unrecognised org', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({ name: 'LOCAL-ISP' }),
+    }) as typeof fetch;
+
+    const pe = makeRdapEnricher();
+    const result = await pe.classifyAll('198.51.100.7');
+
+    expect(result.isVpn).toBe(false);
+    expect(result.isProxy).toBe(false);
+    expect(result.isHosting).toBe(false);
+  });
+
+  it('classifyAll skips RDAP entirely when enableRdap is false', async () => {
+    const fetchSpy = vi.fn() as typeof fetch;
+    globalThis.fetch = fetchSpy;
+
+    const pe = new ProxyEnricher(undefined, [], false, false);
+    (pe as unknown as { initDone: boolean }).initDone = true;
+    const result = await pe.classifyAll('198.51.100.8');
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(result.rdapInfo).toEqual({});
+    expect(result.isVpn).toBe(false);
+    expect(result.isProxy).toBe(false);
+    expect(result.isHosting).toBe(false);
   });
 });
