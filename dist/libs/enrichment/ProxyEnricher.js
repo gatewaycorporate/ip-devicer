@@ -97,29 +97,56 @@ const DEFAULT_PROXY_CIDRS = [
 ];
 /** RDAP org-name patterns for VPN provider fallback detection */
 const VPN_ORG_PATTERNS = [
-    /mullvad/i,
-    /protonvpn/i,
-    /nordvpn|tefincom/i,
+    /mullvad|31173 services/i, // Mullvad VPN / 31173 Services AB (registered owner)
+    /protonvpn|proton ag/i, // ProtonVPN / Proton AG (parent company)
+    /nordvpn|tefincom/i, // NordVPN / Tefincom SA (registered owner)
+    /cyberghost|\bkape\b/i, // CyberGhost / Kape Technologies (also owns ExpressVPN, PIA, ZenMate)
+    /zenmate/i, // ZenMate (Kape Technologies)
     /expressvpn/i,
     /ipvanish/i,
     /surfshark/i,
     /windscribe/i,
-    /privateinternetaccess|pia-/i,
-    /vyprvpn|goldenfrog/i,
+    /privateinternetaccess|pia-/i, // Private Internet Access
+    /vyprvpn|goldenfrog/i, // VyprVPN / Golden Frog GmbH
     /tunnelbear/i,
     /airvpn/i,
-    /hidemyass|privax/i,
+    /hidemyass|privax/i, // HideMyAss / Privax Ltd
+    /torguard|vpnetworks/i, // TorGuard / VPNetworks LLC
+    /gz systems|purevpn/i, // PureVPN / GZ Systems Ltd
+    /ovpn integritet|ovpn\.se/i, // OVPN.com / OVPN Integritet AB
+    /\bprivatus\b/i, // IVPN / Privatus Limited
+    /anchorfree|\bpango\b/i, // Hotspot Shield / AnchorFree GmbH / Pango Inc
+    /\beventure\b/i, // hide.me VPN / eVenture Ltd
+    /privat kommunikation/i, // PrivateVPN / Privat Kommunikation Sverige AB
+    /\bivacy\b/i, // Ivacy VPN
+    /\bvpn\.ac\b|\bnetsec\b/i, // VPN.ac / Netsec SRL
+    /strongvpn|j2 global.*vpn/i, // StrongVPN / J2 Global
 ];
 /** RDAP org-name patterns for proxy provider fallback detection */
 const PROXY_ORG_PATTERNS = [
-    /brightdata|luminati/i,
+    /brightdata|luminati/i, // Bright Data / Luminati Networks
     /smartproxy/i,
-    /oxylabs|code200/i,
-    /packetstream/i,
-    /netnut/i,
+    /oxylabs|code200/i, // Oxylabs / code200 UAB
+    /packetstream/i, // PacketStream (residential peer proxy)
+    /\bnetnut\b/i, // NetNut.io
     /proxymesh/i,
-    /iproyal/i,
+    /iproyal/i, // IPRoyal / EI Technical
     /webshare/i,
+    /packethub/i, // PacketHub S.A. (IP wholesale & relicensing, AS44477)
+    /geosurf/i, // GeoSurf (acquired by Bright Data)
+    /microleaves|shifter/i, // Shifter.io (formerly Microleaves)
+    /\bsoax\b/i, // SOAX residential proxy
+    /rayobyte|blazing.?seo/i, // Rayobyte (formerly Blazing SEO Proxies)
+    /infatica/i, // Infatica residential proxy
+    /\bipxo\b/i, // IPXO IP monetization & leasing marketplace
+    /proxyempire/i, // ProxyEmpire
+    /nodemaven/i, // NodeMaven
+    /proxy.?cheap|finecom/i, // Proxy-Cheap / Finecom OÜ
+    /\bfroxy\b/i, // Froxy.com
+    /\basocks\b/i, // ASocks proxy network
+    /stormproxies|storm proxies/i, // Storm Proxies
+    /hydraproxy/i, // HydraProxy
+    /\bgiglinx\b|proxy\.sh/i, // GiglinxProxy / proxy.sh
 ];
 /** RDAP org-name patterns for hosting/cloud provider fallback detection */
 const HOSTING_ORG_PATTERNS = [
@@ -131,6 +158,18 @@ const HOSTING_ORG_PATTERNS = [
     /\bovh\b/i,
     /\bhetzner\b/i,
     /\bvultr\b|\bchoopa\b/i,
+    /\bm247\b/i, // M247 Ltd (AS9009) — common VPN/proxy transit provider
+    /\bdatacamp\b/i, // Datacamp Limited (AS60068) — datacenter proxy registrant
+    /\bscaleway\b/i, // Scaleway SAS / Online SAS — used by VyprVPN et al.
+    /\bleaseweb\b/i, // LeaseWeb — popular with proxy operators
+    /\bupcloud\b/i, // UpCloud — used by NordVPN et al.
+    /\bhostinger\b/i, // Hostinger — cheap VPS commonly used for proxies
+    /\bclouvider\b/i, // Clouvider Ltd — used by Smartproxy et al.
+    /\bfrantech\b|\bbuyvm\b/i, // FranTech Solutions / BuyVM
+    /\bserverius\b/i, // Serverius — Dutch, popular with proxy operators
+    /\bcombahton\b/i, // Combahton GmbH — German proxy-friendly host
+    /\bsharktech\b/i, // Sharktech — DDoS-protected hosting, popular with proxies
+    /\bnforce\b/i, // NFOrce Entertainment (used by AirVPN et al.)
 ];
 /** Well-known hosting/cloud ASN CIDR prefixes (representative subset) */
 const HOSTING_CIDRS = [
