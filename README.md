@@ -50,6 +50,10 @@ app.post("/identify", async (req, res) => {
 });
 ```
 
+If `ip` is omitted, `ip-devicer` will derive the client IP from request headers,
+preferring `X-Real-IP` and then falling back to the first `X-Forwarded-For`
+address.
+
 ## Recommended Setup (MaxMind)
 
 To get full usage out of this library, you will need to follow these

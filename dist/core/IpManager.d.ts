@@ -59,7 +59,7 @@ export declare class IpManager {
     getHistory(deviceId: string, limit?: number): IpSnapshot[];
     /**
      * Registers this IpManager with a DeviceManager instance by wrapping its
-     * `identify` method. Any call to `deviceManager.identify(data, { ip, ... })`
+     * `identify` method. Any call to `deviceManager.identify(data, { ip, headers, ... })`
      * will automatically enrich the result with IP signals.
      */
     registerWith(deviceManager: DeviceManagerLike): void;

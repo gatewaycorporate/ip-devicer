@@ -12,6 +12,32 @@ const LICENSE_INVALID_WARN = '[ip-devicer] License key could not be validated â€
     'Check your key or network connectivity.';
 const DEVICE_LIMIT_WARN = `[ip-devicer] Free-tier device limit reached (${FREE_TIER_MAX_DEVICES.toLocaleString()} devices). ` +
     'New device will not be tracked. Upgrade to Pro or Enterprise to remove this limit.';
+function getFirstHeaderValue(value) {
+    if (Array.isArray(value)) {
+        return value[0]?.trim() || undefined;
+    }
+    const trimmed = value?.trim();
+    return trimmed ? trimmed : undefined;
+}
+function resolveContextIp(context) {
+    const explicitIp = context?.ip?.trim();
+    if (explicitIp) {
+        return explicitIp;
+    }
+    const realIp = getFirstHeaderValue(context?.headers?.['x-real-ip']);
+    if (realIp) {
+        return realIp;
+    }
+    const forwardedFor = getFirstHeaderValue(context?.headers?.['x-forwarded-for']);
+    if (!forwardedFor) {
+        return undefined;
+    }
+    const clientIp = forwardedFor
+        .split(',')
+        .map((value) => value.trim())
+        .find(Boolean);
+    return clientIp || undefined;
+}
 export class IpManager {
     static DEVICE_MANAGER_PLUGIN_NAME = 'ip';
     geo;
@@ -168,17 +194,18 @@ export class IpManager {
     }
     /**
      * Registers this IpManager with a DeviceManager instance by wrapping its
-     * `identify` method. Any call to `deviceManager.identify(data, { ip, ... })`
+     * `identify` method. Any call to `deviceManager.identify(data, { ip, headers, ... })`
      * will automatically enrich the result with IP signals.
      */
     registerWith(deviceManager) {
         if (typeof deviceManager.registerIdentifyPostProcessor === 'function') {
             deviceManager.registerIdentifyPostProcessor(IpManager.DEVICE_MANAGER_PLUGIN_NAME, async ({ result, context }) => {
                 const ctx = (context ?? {});
-                if (!ctx.ip) {
+                const ip = resolveContextIp(ctx);
+                if (!ip) {
                     return;
                 }
-                const { enrichment, riskDelta } = await this.enrich(ctx.ip, result.deviceId);
+                const { enrichment, riskDelta } = await this.enrich(ip, result.deviceId);
                 return {
                     result: {
                         ipEnrichment: enrichment,
@@ -219,10 +246,11 @@ export class IpManager {
         deviceManager.identify = async function patchedIdentify(data, context) {
             const result = await original(data, context);
             const ctx = (context ?? {});
-            if (!ctx.ip)
+            const ip = resolveContextIp(ctx);
+            if (!ip)
                 return result;
             try {
-                const { enrichment, riskDelta } = await self.enrich(ctx.ip, result.deviceId);
+                const { enrichment, riskDelta } = await self.enrich(ip, result.deviceId);
                 return { ...result, ipEnrichment: enrichment, ipRiskDelta: riskDelta };
             }
             catch {

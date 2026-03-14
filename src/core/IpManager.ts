@@ -62,6 +62,41 @@ interface DeviceManagerLike {
   ): () => void;
 }
 
+function getFirstHeaderValue(
+  value: string | string[] | undefined,
+): string | undefined {
+  if (Array.isArray(value)) {
+    return value[0]?.trim() || undefined;
+  }
+
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function resolveContextIp(context?: IpIdentifyContext): string | undefined {
+  const explicitIp = context?.ip?.trim();
+  if (explicitIp) {
+    return explicitIp;
+  }
+
+  const realIp = getFirstHeaderValue(context?.headers?.['x-real-ip']);
+  if (realIp) {
+    return realIp;
+  }
+
+  const forwardedFor = getFirstHeaderValue(context?.headers?.['x-forwarded-for']);
+  if (!forwardedFor) {
+    return undefined;
+  }
+
+  const clientIp = forwardedFor
+    .split(',')
+    .map((value) => value.trim())
+    .find(Boolean);
+
+  return clientIp || undefined;
+}
+
 export class IpManager {
   private static readonly DEVICE_MANAGER_PLUGIN_NAME = 'ip';
   private readonly geo: GeoEnricher;
@@ -273,7 +308,7 @@ export class IpManager {
 
   /**
    * Registers this IpManager with a DeviceManager instance by wrapping its
-   * `identify` method. Any call to `deviceManager.identify(data, { ip, ... })`
+   * `identify` method. Any call to `deviceManager.identify(data, { ip, headers, ... })`
    * will automatically enrich the result with IP signals.
    */
   registerWith(deviceManager: DeviceManagerLike): void {
@@ -282,11 +317,12 @@ export class IpManager {
         IpManager.DEVICE_MANAGER_PLUGIN_NAME,
         async ({ result, context }) => {
           const ctx = (context ?? {}) as IpIdentifyContext;
-          if (!ctx.ip) {
+          const ip = resolveContextIp(ctx);
+          if (!ip) {
             return;
           }
 
-          const { enrichment, riskDelta } = await this.enrich(ctx.ip, result.deviceId);
+          const { enrichment, riskDelta } = await this.enrich(ip, result.deviceId);
 
           return {
             result: {
@@ -334,12 +370,13 @@ export class IpManager {
     ): Promise<EnrichedIdentifyResult> {
       const result = await original(data, context);
       const ctx = (context ?? {}) as IpIdentifyContext;
+      const ip = resolveContextIp(ctx);
 
-      if (!ctx.ip) return result;
+      if (!ip) return result;
 
       try {
         const { enrichment, riskDelta } = await self.enrich(
-          ctx.ip,
+          ip,
           result.deviceId,
         );
         return { ...result, ipEnrichment: enrichment, ipRiskDelta: riskDelta };
