@@ -20,6 +20,7 @@
     "test": "npx vitest run",
     "test:watch": "npx vitest watch",
     "test:coverage": "npx vitest run --coverage",
+    "verify:ai-ranges": "node ./scripts/verify-ai-agent-ranges.mjs",
     "docs": "typedoc --out docs src/main.ts",
     "docs:watch": "typedoc --out docs src/main.ts --watch"
   },

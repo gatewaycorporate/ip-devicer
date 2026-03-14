@@ -190,7 +190,7 @@ export class IpManager {
       // Return a zero-signal enrichment so callers still get a result.
       const empty: IpEnrichment = {
         isProxy: false, isVpn: false, isTor: false, isHosting: false,
-        riskScore: 0, riskFactors: [], consistencyScore: 0,
+        rdapInfo: {}, riskScore: 0, riskFactors: [], consistencyScore: 0,
         impossibleTravel: false,
       };
       return { enrichment: empty, riskDelta: 0 };
@@ -315,6 +315,7 @@ export class IpManager {
                 isVpn: enrichment.isVpn,
                 isTor: enrichment.isTor,
                 isHosting: enrichment.isHosting,
+								rdapInfo: enrichment.rdapInfo
               },
             },
           };

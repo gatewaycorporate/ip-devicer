@@ -27,6 +27,20 @@ export type {
 export { GeoEnricher } from './libs/enrichment/GeoEnricher.js';
 export { ProxyEnricher } from './libs/enrichment/ProxyEnricher.js';
 export { computeRiskScore } from './libs/enrichment/reputation.js';
+export {
+  AI_AGENT_CURATION_POLICY,
+  AI_AGENT_PROVIDER_PROFILES,
+  AI_AGENT_PROVIDER_RDAP_ALIASES,
+  VERIFIED_AI_AGENT_RANGES,
+  RDAP_ATTRIBUTED_AI_AGENT_RANGES,
+  PARTNER_ATTRIBUTED_AI_AGENT_RANGES,
+  CANDIDATE_AI_AGENT_RANGES,
+  DEFAULT_AI_AGENT_RANGES,
+  ALL_AI_AGENT_RANGES,
+  getAiAgentRangesByConfidence,
+  getAiAgentRangesByProvider,
+  groupAiAgentRangesByProvider,
+} from './libs/enrichment/agents.js';
 
 // ── Scoring ───────────────────────────────────────────────────
 export {

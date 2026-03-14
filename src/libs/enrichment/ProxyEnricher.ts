@@ -1,4 +1,8 @@
 import { readFileSync } from 'node:fs';
+import {
+  DEFAULT_AI_AGENT_RANGES,
+  type AiAgentRange,
+} from './agents.js';
 
 /** Default Tor exit node bulk list URL */
 const DEFAULT_TOR_URL = 'https://check.torproject.org/torbulkexitlist';
@@ -156,6 +160,7 @@ export class ProxyEnricher {
   private torExitNodes = new Set<string>();
   private vpnCidrs: string[] = [...DEFAULT_VPN_CIDRS];
   private proxyCidrs: string[] = [...DEFAULT_PROXY_CIDRS];
+  private aiAgentRanges: AiAgentRange[] = [...DEFAULT_AI_AGENT_RANGES];
   private readonly hostingCidrs: string[] = HOSTING_CIDRS;
   private initDone = false;
 
@@ -223,6 +228,21 @@ export class ProxyEnricher {
     return this.hostingCidrs.some((cidr) => isInCidr(ip, cidr));
   }
 
+  getAiAgentMatch(ip: string): Pick<AiAgentRange, 'provider' | 'confidence' | 'source'> | null {
+    const match = this.aiAgentRanges.find((entry) => isInCidr(ip, entry.cidr));
+    if (!match) return null;
+
+    return {
+      provider: match.provider,
+      confidence: match.confidence,
+      source: match.source,
+    };
+  }
+
+  isAiAgent(ip: string): boolean {
+    return this.getAiAgentMatch(ip) !== null;
+  }
+
   /**
    * Query ARIN RDAP (falling back to RIPE on 404) to look up the registered
    * network name and origin ASN for a given IPv4 address.
@@ -262,13 +282,21 @@ export class ProxyEnricher {
   }
 
   async classifyAll(ip: string): Promise<{
+    isAiAgent: boolean;
+    aiAgentProvider?: AiAgentRange['provider'];
+    aiAgentConfidence?: AiAgentRange['confidence'];
     isTor: boolean;
     isVpn: boolean;
     isProxy: boolean;
     isHosting: boolean;
     rdapInfo: { asn?: number; asnOrg?: string };
   }> {
+    const aiAgentMatch = this.getAiAgentMatch(ip);
+
     return {
+      isAiAgent: aiAgentMatch !== null,
+      aiAgentProvider: aiAgentMatch?.provider,
+      aiAgentConfidence: aiAgentMatch?.confidence,
       isTor: this.isTor(ip),
       isVpn: this.isVpn(ip),
       isProxy: this.isProxy(ip),
@@ -281,6 +309,7 @@ export class ProxyEnricher {
     this.torExitNodes.clear();
     this.vpnCidrs = [...DEFAULT_VPN_CIDRS];
     this.proxyCidrs = [...DEFAULT_PROXY_CIDRS];
+    this.aiAgentRanges = [...DEFAULT_AI_AGENT_RANGES];
     this.initDone = false;
     await this.init();
   }

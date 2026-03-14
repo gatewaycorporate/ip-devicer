@@ -138,7 +138,16 @@ describe('ProxyEnricher – default proxy CIDRs (no license required)', () => {
 describe('ProxyEnricher – classifyAll', () => {
   it('returns all false for a clean residential IP', async () => {
     const result = await makeEnricher().classifyAll('8.8.8.8');
-    expect(result).toEqual({ isTor: false, isVpn: false, isProxy: false, isHosting: false, rdapInfo: {} });
+    expect(result).toEqual({
+      isAiAgent: false,
+      aiAgentProvider: undefined,
+      aiAgentConfidence: undefined,
+      isTor: false,
+      isVpn: false,
+      isProxy: false,
+      isHosting: false,
+      rdapInfo: {},
+    });
   });
 
   it('flags a default VPN IP via classifyAll', async () => {

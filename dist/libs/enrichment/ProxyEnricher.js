@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { DEFAULT_AI_AGENT_RANGES, } from './agents.js';
 /** Default Tor exit node bulk list URL */
 const DEFAULT_TOR_URL = 'https://check.torproject.org/torbulkexitlist';
 /**
@@ -154,6 +155,7 @@ export class ProxyEnricher {
     torExitNodes = new Set();
     vpnCidrs = [...DEFAULT_VPN_CIDRS];
     proxyCidrs = [...DEFAULT_PROXY_CIDRS];
+    aiAgentRanges = [...DEFAULT_AI_AGENT_RANGES];
     hostingCidrs = HOSTING_CIDRS;
     initDone = false;
     constructor(torExitListUrl = DEFAULT_TOR_URL, proxyListPaths = [], hasLicense = false, enableRdap = true) {
@@ -219,6 +221,19 @@ export class ProxyEnricher {
     isHosting(ip) {
         return this.hostingCidrs.some((cidr) => isInCidr(ip, cidr));
     }
+    getAiAgentMatch(ip) {
+        const match = this.aiAgentRanges.find((entry) => isInCidr(ip, entry.cidr));
+        if (!match)
+            return null;
+        return {
+            provider: match.provider,
+            confidence: match.confidence,
+            source: match.source,
+        };
+    }
+    isAiAgent(ip) {
+        return this.getAiAgentMatch(ip) !== null;
+    }
     /**
      * Query ARIN RDAP (falling back to RIPE on 404) to look up the registered
      * network name and origin ASN for a given IPv4 address.
@@ -259,7 +274,11 @@ export class ProxyEnricher {
         }
     }
     async classifyAll(ip) {
+        const aiAgentMatch = this.getAiAgentMatch(ip);
         return {
+            isAiAgent: aiAgentMatch !== null,
+            aiAgentProvider: aiAgentMatch?.provider,
+            aiAgentConfidence: aiAgentMatch?.confidence,
             isTor: this.isTor(ip),
             isVpn: this.isVpn(ip),
             isProxy: this.isProxy(ip),
@@ -271,6 +290,7 @@ export class ProxyEnricher {
         this.torExitNodes.clear();
         this.vpnCidrs = [...DEFAULT_VPN_CIDRS];
         this.proxyCidrs = [...DEFAULT_PROXY_CIDRS];
+        this.aiAgentRanges = [...DEFAULT_AI_AGENT_RANGES];
         this.initDone = false;
         await this.init();
     }
