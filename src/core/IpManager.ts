@@ -129,7 +129,7 @@ export class IpManager implements DeviceManagerPlugin {
       hasKey,
       opts.enableRdap ?? true,
     );
-    this.storage = createIpStorage(maxHistory);
+    this.storage = opts.storage ?? createIpStorage(maxHistory);
   }
 
   // ── Accessors ────────────────────────────────────────────
@@ -171,7 +171,10 @@ export class IpManager implements DeviceManagerPlugin {
       console.warn(LICENSE_INVALID_WARN);
       // If we over-provisioned history, recreate storage with free-tier cap.
       if (this.options.maxHistoryPerDevice > FREE_TIER_MAX_HISTORY) {
-        this.storage = createIpStorage(FREE_TIER_MAX_HISTORY);
+        // Only recreate storage when using the default in-memory backend.
+        if (!this.options.storage) {
+          this.storage = createIpStorage(FREE_TIER_MAX_HISTORY);
+        }
         (this.options as { maxHistoryPerDevice: number }).maxHistoryPerDevice =
           FREE_TIER_MAX_HISTORY;
       }

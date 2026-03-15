@@ -33,10 +33,20 @@ export interface IpManagerOptions {
    */
   enableRdap?: boolean;
   /** Max IP snapshots kept per deviceId in memory. Default: 50 (10 without key) */
-
   maxHistoryPerDevice?: number;
   /** Minimum km/h speed that triggers impossible-travel alert. Default: 900 */
   impossibleTravelThresholdKmh?: number;
+  /**
+   * Custom storage backend. Defaults to the built-in in-memory store.
+   * Use `createSqliteIpStorage`, `createPostgresIpStorage`, or
+   * `createRedisIpStorage` to supply a persistent backend.
+   *
+   * The `IpStorage` interface is synchronous (in-memory, SQLite).
+   * For async backends (Postgres, Redis) initialise them separately and
+   * wrap in an adapter that satisfies `IpStorage`, or use them standalone
+   * via their own `AsyncIpStorage` interface.
+   */
+  storage?: import('./libs/adapters/inmemory.js').IpStorage;
 }
 
 // ── Geo / ASN ────────────────────────────────────────────────
