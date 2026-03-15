@@ -90,5 +90,22 @@ export function createRedisIpStorage(
     async close(): Promise<void> {
       await redis.quit();
     },
+
+    async size(): Promise<number> {
+      let cursor = '0';
+      let count = 0;
+      do {
+        const [nextCursor, keys] = await redis.scan(
+          cursor,
+          'MATCH',
+          'ip:device:*',
+          'COUNT',
+          '100',
+        );
+        cursor = nextCursor;
+        count += keys.length;
+      } while (cursor !== '0');
+      return count;
+    },
   };
 }

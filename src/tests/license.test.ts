@@ -220,7 +220,7 @@ describe('IpManager history downgrade', () => {
     for (let i = 0; i < 12; i++) {
       await mgr.enrich(`10.0.0.${i}`, 'dev-downgrade');
     }
-    expect(mgr.getHistory('dev-downgrade').length).toBe(FREE_TIER_MAX_HISTORY);
+    expect((await mgr.getHistory('dev-downgrade')).length).toBe(FREE_TIER_MAX_HISTORY);
   });
 
   it('retains full history when key is accepted', async () => {
@@ -231,7 +231,7 @@ describe('IpManager history downgrade', () => {
     for (let i = 0; i < 15; i++) {
       await mgr.enrich(`192.168.1.${i}`, 'dev-pro');
     }
-    expect(mgr.getHistory('dev-pro').length).toBe(15);
+    expect((await mgr.getHistory('dev-pro')).length).toBe(15);
   });
 });
 

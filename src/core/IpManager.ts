@@ -7,6 +7,7 @@ import {
   computeConsistencyScore,
 } from '../libs/scoring.js';
 import { createIpStorage, type IpStorage } from '../libs/adapters/inmemory.js';
+import { type AsyncIpStorage } from '../libs/adapters/postgres.js';
 import {
   validateLicense,
   type LicenseInfo,
@@ -80,11 +81,27 @@ function resolveContextIp(context?: IpIdentifyContext): string | undefined {
   return clientIp || undefined;
 }
 
+function normalizeStorage(s: IpStorage | AsyncIpStorage): AsyncIpStorage {
+  if (!('init' in s)) {
+    const sync = s as IpStorage;
+    return {
+      init:       () => Promise.resolve(),
+      save:       (p) => Promise.resolve(sync.save(p)),
+      getHistory: (id, lim) => Promise.resolve(sync.getHistory(id, lim)),
+      getLatest:  (id) => Promise.resolve(sync.getLatest(id)),
+      clear:      (id) => Promise.resolve(sync.clear(id)),
+      close:      () => Promise.resolve(),
+      size:       () => Promise.resolve(sync.size()),
+    };
+  }
+  return s as AsyncIpStorage;
+}
+
 export class IpManager implements DeviceManagerPlugin {
   private static readonly DEVICE_MANAGER_PLUGIN_NAME = 'ip';
   private readonly geo: GeoEnricher;
   private readonly proxy: ProxyEnricher;
-  private storage: IpStorage;
+  private storage: AsyncIpStorage;
   private readonly options: Required<
     Pick<
       IpManagerOptions,
@@ -129,7 +146,7 @@ export class IpManager implements DeviceManagerPlugin {
       hasKey,
       opts.enableRdap ?? true,
     );
-    this.storage = opts.storage ?? createIpStorage(maxHistory);
+    this.storage = normalizeStorage(opts.storage ?? createIpStorage(maxHistory));
   }
 
   // ── Accessors ────────────────────────────────────────────
@@ -173,7 +190,7 @@ export class IpManager implements DeviceManagerPlugin {
       if (this.options.maxHistoryPerDevice > FREE_TIER_MAX_HISTORY) {
         // Only recreate storage when using the default in-memory backend.
         if (!this.options.storage) {
-          this.storage = createIpStorage(FREE_TIER_MAX_HISTORY);
+          this.storage = normalizeStorage(createIpStorage(FREE_TIER_MAX_HISTORY));
         }
         (this.options as { maxHistoryPerDevice: number }).maxHistoryPerDevice =
           FREE_TIER_MAX_HISTORY;
@@ -201,11 +218,11 @@ export class IpManager implements DeviceManagerPlugin {
     await this.ensureInit();
 
     // ── Free-tier device cap ───────────────────────────────────
-    const isKnown = this.storage.getLatest(deviceId) !== null;
+    const isKnown = (await this.storage.getLatest(deviceId)) !== null;
     if (
       !isKnown &&
       this.licenseInfo.tier === 'free' &&
-      this.storage.size() >= FREE_TIER_MAX_DEVICES
+      (await this.storage.size()) >= FREE_TIER_MAX_DEVICES
     ) {
       console.warn(DEVICE_LIMIT_WARN);
       // Return a zero-signal enrichment so callers still get a result.
@@ -222,11 +239,11 @@ export class IpManager implements DeviceManagerPlugin {
       Promise.resolve(this.proxy.classifyAll(ip)),
     ]);
 
-    const history = this.storage.getHistory(deviceId);
+    const history = await this.storage.getHistory(deviceId);
 
     // Impossible travel check
     let impossibleTravel = false;
-    const latest = this.storage.getLatest(deviceId);
+    const latest = await this.storage.getLatest(deviceId);
     if (
       latest &&
       geoData.latitude !== undefined &&
@@ -273,7 +290,7 @@ export class IpManager implements DeviceManagerPlugin {
     const enrichment: IpEnrichment = { ...partialEnrichment, consistencyScore };
 
     // Persist snapshot
-    this.storage.save({
+    await this.storage.save({
       deviceId,
       ip,
       timestamp: new Date(),
@@ -288,7 +305,7 @@ export class IpManager implements DeviceManagerPlugin {
   /**
    * Returns the full IP history for a deviceId.
    */
-  getHistory(deviceId: string, limit?: number): IpSnapshot[] {
+  async getHistory(deviceId: string, limit?: number): Promise<IpSnapshot[]> {
     return this.storage.getHistory(deviceId, limit);
   }
 

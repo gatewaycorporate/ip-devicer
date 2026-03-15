@@ -141,8 +141,8 @@ describe('IpManager.registerWith', () => {
     const result = { ...baseResult, ...outcome?.result } as EnrichedIdentifyResult;
 
     expect(result.ipEnrichment).toBeDefined();
-    expect(manager.getHistory('dev_real_ip')).toHaveLength(1);
-    expect(manager.getHistory('dev_real_ip')[0]?.ip).toBe('198.51.100.7');
+    expect(await manager.getHistory('dev_real_ip')).toHaveLength(1);
+    expect((await manager.getHistory('dev_real_ip'))[0]?.ip).toBe('198.51.100.7');
   });
 
   it('prefers CF-Connecting-IP over proxy-populated context.ip', async () => {
@@ -182,7 +182,7 @@ describe('IpManager.registerWith', () => {
 
     await storedProcessor!({ result: baseResult, context: { ip: '104.16.132.229', headers: { 'cf-connecting-ip': '198.51.100.10' } } } as unknown as Parameters<IdentifyPostProcessor>[0]);
 
-    expect(manager.getHistory('dev_cf_connecting_ip')[0]?.ip).toBe('198.51.100.10');
+    expect((await manager.getHistory('dev_cf_connecting_ip'))[0]?.ip).toBe('198.51.100.10');
   });
 
   it('prefers X-Real-IP over context.ip when both are present', async () => {
@@ -222,7 +222,7 @@ describe('IpManager.registerWith', () => {
 
     await storedProcessor!({ result: baseResult, context: { ip: '104.16.132.229', headers: { 'x-real-ip': '198.51.100.8' } } } as unknown as Parameters<IdentifyPostProcessor>[0]);
 
-    expect(manager.getHistory('dev_real_ip_overrides_context')[0]?.ip).toBe('198.51.100.8');
+    expect((await manager.getHistory('dev_real_ip_overrides_context'))[0]?.ip).toBe('198.51.100.8');
   });
 
   it('prefers True-Client-IP over X-Real-IP when both are present', async () => {
@@ -262,7 +262,7 @@ describe('IpManager.registerWith', () => {
 
     await storedProcessor!({ result: baseResult, context: { headers: { 'true-client-ip': '198.51.100.11', 'x-real-ip': '198.51.100.12' } } } as unknown as Parameters<IdentifyPostProcessor>[0]);
 
-    expect(manager.getHistory('dev_true_client_ip')[0]?.ip).toBe('198.51.100.11');
+    expect((await manager.getHistory('dev_true_client_ip'))[0]?.ip).toBe('198.51.100.11');
   });
 
   it('prefers X-Real-IP over X-Forwarded-For when deriving the client IP from headers', async () => {
@@ -302,7 +302,7 @@ describe('IpManager.registerWith', () => {
 
     await storedProcessor!({ result: baseResult, context: { headers: { 'x-real-ip': '198.51.100.9', 'x-forwarded-for': '203.0.113.5, 10.0.0.1' } } } as unknown as Parameters<IdentifyPostProcessor>[0]);
 
-    expect(manager.getHistory('dev_real_ip_preferred')[0]?.ip).toBe('198.51.100.9');
+    expect((await manager.getHistory('dev_real_ip_preferred'))[0]?.ip).toBe('198.51.100.9');
   });
 
   it('stores IP history per deviceId', async () => {
@@ -342,7 +342,7 @@ describe('IpManager.registerWith', () => {
     await storedProcessor!({ result: baseResult, context: { ip: '1.2.3.4' } } as unknown as Parameters<IdentifyPostProcessor>[0]);
     await storedProcessor!({ result: baseResult, context: { ip: '5.6.7.8' } } as unknown as Parameters<IdentifyPostProcessor>[0]);
 
-    const history = manager.getHistory('dev_hist');
+    const history = await manager.getHistory('dev_hist');
     expect(history).toHaveLength(2);
   });
 
@@ -464,7 +464,7 @@ describe('IpManager.registerWith', () => {
     } as unknown as Parameters<IdentifyPostProcessor>[0]);
 
     expect(outcome?.result?.ipEnrichment).toBeDefined();
-    expect(manager.getHistory('dev_hook_real_ip')[0]?.ip).toBe('203.0.113.45');
+    expect((await manager.getHistory('dev_hook_real_ip'))[0]?.ip).toBe('203.0.113.45');
   });
 
   it('prefers CF-Connecting-IP in post-processor mode', async () => {
@@ -517,7 +517,7 @@ describe('IpManager.registerWith', () => {
       },
     } as unknown as Parameters<IdentifyPostProcessor>[0]);
 
-    expect(manager.getHistory('dev_hook_cf_connecting_ip')[0]?.ip).toBe('203.0.113.47');
+    expect((await manager.getHistory('dev_hook_cf_connecting_ip'))[0]?.ip).toBe('203.0.113.47');
   });
 
   it('prefers X-Real-IP over context.ip in post-processor mode', async () => {
@@ -570,6 +570,6 @@ describe('IpManager.registerWith', () => {
       },
     } as unknown as Parameters<IdentifyPostProcessor>[0]);
 
-    expect(manager.getHistory('dev_hook_real_ip_overrides_context')[0]?.ip).toBe('203.0.113.46');
+    expect((await manager.getHistory('dev_hook_real_ip_overrides_context'))[0]?.ip).toBe('203.0.113.46');
   });
 });

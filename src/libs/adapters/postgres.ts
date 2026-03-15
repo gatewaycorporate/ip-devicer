@@ -19,6 +19,8 @@ export interface AsyncIpStorage {
   clear(deviceId?: string): Promise<void>;
   /** Release connection pool / client. */
   close(): Promise<void>;
+  /** Number of unique device IDs currently stored. */
+  size(): Promise<number>;
 }
 
 /**
@@ -113,6 +115,13 @@ export function createPostgresIpStorage(
 
     async close(): Promise<void> {
       await pool.end();
+    },
+
+    async size(): Promise<number> {
+      const res = await pool.query(
+        'SELECT COUNT(DISTINCT "deviceId") AS n FROM ip_snapshots',
+      );
+      return Number(res.rows[0].n);
     },
   };
 }
