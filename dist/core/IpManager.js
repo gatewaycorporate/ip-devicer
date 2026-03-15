@@ -220,6 +220,9 @@ export class IpManager {
                 },
                 enrichmentInfo: {
                     country: enrichment.country,
+                    city: enrichment.city,
+                    latitude: enrichment.latitude,
+                    longitude: enrichment.longitude,
                     asn: enrichment.asn,
                     agentInfo: enrichment.agentInfo,
                     riskScore: enrichment.riskScore,
