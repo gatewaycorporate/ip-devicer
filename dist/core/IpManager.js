@@ -77,7 +77,7 @@ export class IpManager {
         };
         this.geo = new GeoEnricher(opts.maxmindPath, opts.asnPath);
         this.proxy = new ProxyEnricher(opts.torExitListUrl, opts.proxyListPaths ?? [], hasKey, opts.enableRdap ?? true);
-        this.storage = createIpStorage(maxHistory);
+        this.storage = opts.storage ?? createIpStorage(maxHistory);
     }
     // ── Accessors ────────────────────────────────────────────
     /** The active license tier. Resolves to `'free'` until {@link init} completes. */
@@ -112,7 +112,10 @@ export class IpManager {
             console.warn(LICENSE_INVALID_WARN);
             // If we over-provisioned history, recreate storage with free-tier cap.
             if (this.options.maxHistoryPerDevice > FREE_TIER_MAX_HISTORY) {
-                this.storage = createIpStorage(FREE_TIER_MAX_HISTORY);
+                // Only recreate storage when using the default in-memory backend.
+                if (!this.options.storage) {
+                    this.storage = createIpStorage(FREE_TIER_MAX_HISTORY);
+                }
                 this.options.maxHistoryPerDevice =
                     FREE_TIER_MAX_HISTORY;
             }
