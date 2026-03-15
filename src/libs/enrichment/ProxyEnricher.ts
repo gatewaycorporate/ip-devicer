@@ -109,7 +109,7 @@ const VPN_ORG_PATTERNS: RegExp[] = [
   /mullvad|31173 services/i,          // Mullvad VPN / 31173 Services AB (registered owner)
   /protonvpn|proton ag/i,             // ProtonVPN / Proton AG (parent company)
   /nordvpn|tefincom/i,                // NordVPN / Tefincom SA (registered owner)
-  /cyberghost|\bkape\b/i,            // CyberGhost / Kape Technologies (also owns ExpressVPN, PIA, ZenMate)
+  /cyberghost|\bkape\b/i,             // CyberGhost / Kape Technologies (also owns ExpressVPN, PIA, ZenMate)
   /zenmate/i,                         // ZenMate (Kape Technologies)
   /expressvpn/i,
   /ipvanish/i,
@@ -119,16 +119,16 @@ const VPN_ORG_PATTERNS: RegExp[] = [
   /vyprvpn|goldenfrog/i,              // VyprVPN / Golden Frog GmbH
   /tunnelbear/i,
   /airvpn/i,
-  /hidemyass|privax/i,               // HideMyAss / Privax Ltd
+  /hidemyass|privax/i,                // HideMyAss / Privax Ltd
   /torguard|vpnetworks/i,             // TorGuard / VPNetworks LLC
-  /gz systems|purevpn/i,             // PureVPN / GZ Systems Ltd
-  /ovpn integritet|ovpn\.se/i,       // OVPN.com / OVPN Integritet AB
+  /gz systems|purevpn/i,              // PureVPN / GZ Systems Ltd
+  /ovpn integritet|ovpn\.se/i,        // OVPN.com / OVPN Integritet AB
   /\bprivatus\b/i,                    // IVPN / Privatus Limited
-  /anchorfree|\bpango\b/i,           // Hotspot Shield / AnchorFree GmbH / Pango Inc
+  /anchorfree|\bpango\b/i,            // Hotspot Shield / AnchorFree GmbH / Pango Inc
   /\beventure\b/i,                    // hide.me VPN / eVenture Ltd
   /privat kommunikation/i,            // PrivateVPN / Privat Kommunikation Sverige AB
   /\bivacy\b/i,                       // Ivacy VPN
-  /\bvpn\.ac\b|\bnetsec\b/i,         // VPN.ac / Netsec SRL
+  /\bvpn\.ac\b|\bnetsec\b/i,          // VPN.ac / Netsec SRL
   /strongvpn|j2 global.*vpn/i,        // StrongVPN / J2 Global
 ];
 
@@ -176,7 +176,7 @@ const HOSTING_ORG_PATTERNS: RegExp[] = [
   /\bupcloud\b/i,                     // UpCloud — used by NordVPN et al.
   /\bhostinger\b/i,                   // Hostinger — cheap VPS commonly used for proxies
   /\bclouvider\b/i,                   // Clouvider Ltd — used by Smartproxy et al.
-  /\bfrantech\b|\bbuyvm\b/i,         // FranTech Solutions / BuyVM
+  /\bfrantech\b|\bbuyvm\b/i,          // FranTech Solutions / BuyVM
   /\bserverius\b/i,                   // Serverius — Dutch, popular with proxy operators
   /\bcombahton\b/i,                   // Combahton GmbH — German proxy-friendly host
   /\bsharktech\b/i,                   // Sharktech — DDoS-protected hosting, popular with proxies
