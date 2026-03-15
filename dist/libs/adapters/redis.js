@@ -67,5 +67,15 @@ export function createRedisIpStorage(redisUrl = 'redis://localhost:6379', maxPer
         async close() {
             await redis.quit();
         },
+        async size() {
+            let cursor = '0';
+            let count = 0;
+            do {
+                const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', 'ip:device:*', 'COUNT', '100');
+                cursor = nextCursor;
+                count += keys.length;
+            } while (cursor !== '0');
+            return count;
+        },
     };
 }

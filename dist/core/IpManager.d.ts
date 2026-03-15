@@ -38,7 +38,7 @@ export declare class IpManager implements DeviceManagerPlugin {
     /**
      * Returns the full IP history for a deviceId.
      */
-    getHistory(deviceId: string, limit?: number): IpSnapshot[];
+    getHistory(deviceId: string, limit?: number): Promise<IpSnapshot[]>;
     /**
      * Registers this IpManager with a DeviceManager instance by wrapping its
      * `identify` method. Any call to `deviceManager.identify(data, { ip, headers, ... })`

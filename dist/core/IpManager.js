@@ -46,6 +46,21 @@ function resolveContextIp(context) {
         .find(Boolean);
     return clientIp || undefined;
 }
+function normalizeStorage(s) {
+    if (!('init' in s)) {
+        const sync = s;
+        return {
+            init: () => Promise.resolve(),
+            save: (p) => Promise.resolve(sync.save(p)),
+            getHistory: (id, lim) => Promise.resolve(sync.getHistory(id, lim)),
+            getLatest: (id) => Promise.resolve(sync.getLatest(id)),
+            clear: (id) => Promise.resolve(sync.clear(id)),
+            close: () => Promise.resolve(),
+            size: () => Promise.resolve(sync.size()),
+        };
+    }
+    return s;
+}
 export class IpManager {
     static DEVICE_MANAGER_PLUGIN_NAME = 'ip';
     geo;
@@ -77,7 +92,7 @@ export class IpManager {
         };
         this.geo = new GeoEnricher(opts.maxmindPath, opts.asnPath);
         this.proxy = new ProxyEnricher(opts.torExitListUrl, opts.proxyListPaths ?? [], hasKey, opts.enableRdap ?? true);
-        this.storage = opts.storage ?? createIpStorage(maxHistory);
+        this.storage = normalizeStorage(opts.storage ?? createIpStorage(maxHistory));
     }
     // ── Accessors ────────────────────────────────────────────
     /** The active license tier. Resolves to `'free'` until {@link init} completes. */
@@ -114,7 +129,7 @@ export class IpManager {
             if (this.options.maxHistoryPerDevice > FREE_TIER_MAX_HISTORY) {
                 // Only recreate storage when using the default in-memory backend.
                 if (!this.options.storage) {
-                    this.storage = createIpStorage(FREE_TIER_MAX_HISTORY);
+                    this.storage = normalizeStorage(createIpStorage(FREE_TIER_MAX_HISTORY));
                 }
                 this.options.maxHistoryPerDevice =
                     FREE_TIER_MAX_HISTORY;
@@ -138,10 +153,10 @@ export class IpManager {
     async enrich(ip, deviceId) {
         await this.ensureInit();
         // ── Free-tier device cap ───────────────────────────────────
-        const isKnown = this.storage.getLatest(deviceId) !== null;
+        const isKnown = (await this.storage.getLatest(deviceId)) !== null;
         if (!isKnown &&
             this.licenseInfo.tier === 'free' &&
-            this.storage.size() >= FREE_TIER_MAX_DEVICES) {
+            (await this.storage.size()) >= FREE_TIER_MAX_DEVICES) {
             console.warn(DEVICE_LIMIT_WARN);
             // Return a zero-signal enrichment so callers still get a result.
             const empty = {
@@ -155,10 +170,10 @@ export class IpManager {
             this.geo.enrich(ip),
             Promise.resolve(this.proxy.classifyAll(ip)),
         ]);
-        const history = this.storage.getHistory(deviceId);
+        const history = await this.storage.getHistory(deviceId);
         // Impossible travel check
         let impossibleTravel = false;
-        const latest = this.storage.getLatest(deviceId);
+        const latest = await this.storage.getLatest(deviceId);
         if (latest &&
             geoData.latitude !== undefined &&
             geoData.longitude !== undefined &&
@@ -188,7 +203,7 @@ export class IpManager {
         const consistencyScore = computeConsistencyScore({ ...partialEnrichment, consistencyScore: 0 }, history);
         const enrichment = { ...partialEnrichment, consistencyScore };
         // Persist snapshot
-        this.storage.save({
+        await this.storage.save({
             deviceId,
             ip,
             timestamp: new Date(),
@@ -200,7 +215,7 @@ export class IpManager {
     /**
      * Returns the full IP history for a deviceId.
      */
-    getHistory(deviceId, limit) {
+    async getHistory(deviceId, limit) {
         return this.storage.getHistory(deviceId, limit);
     }
     /**

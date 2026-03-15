@@ -16,6 +16,8 @@ export interface AsyncIpStorage {
     clear(deviceId?: string): Promise<void>;
     /** Release connection pool / client. */
     close(): Promise<void>;
+    /** Number of unique device IDs currently stored. */
+    size(): Promise<number>;
 }
 /**
  * Create an {@link AsyncIpStorage} backed by a PostgreSQL database via the

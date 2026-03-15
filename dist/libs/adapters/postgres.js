@@ -69,5 +69,9 @@ export function createPostgresIpStorage(connectionString, maxPerDevice = 50) {
         async close() {
             await pool.end();
         },
+        async size() {
+            const res = await pool.query('SELECT COUNT(DISTINCT "deviceId") AS n FROM ip_snapshots');
+            return Number(res.rows[0].n);
+        },
     };
 }

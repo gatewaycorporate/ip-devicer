@@ -42,7 +42,7 @@ export interface IpManagerOptions {
      * wrap in an adapter that satisfies `IpStorage`, or use them standalone
      * via their own `AsyncIpStorage` interface.
      */
-    storage?: import('./libs/adapters/inmemory.js').IpStorage;
+    storage?: import('./libs/adapters/inmemory.js').IpStorage | import('./libs/adapters/postgres.js').AsyncIpStorage;
 }
 export interface GeoData {
     country?: string;
