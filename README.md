@@ -30,7 +30,7 @@ const ipManager = new IpManager({
 });
 
 // One-line registration — everything else is automatic
-ipManager.registerWith(deviceManager);
+deviceManager.use(ipManager);
 
 app.post("/identify", async (req, res) => {
 	const result = await deviceManager.identify(req.body.fpPayload, {
