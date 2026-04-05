@@ -1,6 +1,6 @@
 {
   "name": "ip-devicer",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "type": "module",
   "description": "IP Intelligence Middleware for the FP-Devicer Intelligence Suite",
   "main": "./dist/main.js",
@@ -34,7 +34,7 @@
   "author": "Samuel Roux",
   "license": "BSL-1.0",
   "dependencies": {
-    "devicer.js": "^2.0.1",
+    "devicer.js": "^2.0.2",
     "@maxmind/geoip2-node": "^6.3.4",
     "ipaddr.js": "^2.2.0"
   },
