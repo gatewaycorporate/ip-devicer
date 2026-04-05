@@ -1,21 +1,61 @@
 # ip-devicer
 
-## Developed by Gateway Corporate Solutions
-
 **IP Intelligence Middleware** for the FP-Devicer Intelligence Suite.
+Developed by [Gateway Corporate Solutions](https://gatewaycorporate.org).
 
-Instantly enrich every `deviceId` with production-grade IP signals: MaxMind
-geolocation (country, city, subdivision, ASN), proxy/VPN/Tor/hosting detection,
-AI-agent detection, reputation scoring, impossible-travel alerts, and historical
-consistency matching — all 100% self-hosted and invisible to clients.
+---
 
-Part of the [FP-Devicer](https://github.com/gatewaycorporate/fp-devicer) family
-— invisible to clients and extremely hard to spoof.
+## Overview
 
-## Usage
+`ip-devicer` enriches every `DeviceManager.identify()` call with production IP
+signals: MaxMind geolocation, ASN metadata, proxy/VPN/Tor/hosting detection,
+AI-agent detection, reputation scoring, impossible-travel alerts, and device IP
+history consistency.
 
-ip-devicer is designed to integrate seamlessly with FP-Devicer by use of the
-`registerWith` helper.
+### What it does
+
+| Step | Description |
+|------|-------------|
+| **IP extraction** | Resolves the best client IP from trusted headers (`CF-Connecting-IP`, `True-Client-IP`, `X-Real-IP`, `X-Forwarded-For`) or the explicit `ip` context field. |
+| **Geo + ASN enrichment** | Loads MaxMind city and ASN data for country, city, subdivision, coordinates, timezone, ASN, and organization. |
+| **Network classification** | Flags proxy, VPN, Tor, and hosting-provider ranges using bundled or configured intelligence lists. |
+| **AI-agent tagging** | Identifies known AI-agent traffic and attaches provider metadata when matched. |
+| **Reputation scoring** | Computes a risk score from network and behavioral factors. |
+| **History consistency** | Compares the current IP and location against device history to detect drift and impossible travel. |
+
+---
+
+## Installation
+
+Install `ip-devicer` as a standalone package:
+
+```bash
+npm install ip-devicer
+```
+
+Install the bundled network-intelligence pair with FP-Devicer:
+
+```bash
+npm install devicer.js ip-devicer tls-devicer
+```
+
+Optional peer dependencies for persistent storage:
+
+```bash
+npm install better-sqlite3
+npm install ioredis
+npm install pg
+```
+
+Install the full Devicer Intelligence Suite meta-package:
+
+```bash
+npm install @gatewaycorporate/devicer-intel
+```
+
+---
+
+## Quick start
 
 ```typescript
 import { createInMemoryAdapter, DeviceManager } from "devicer.js";
@@ -29,7 +69,6 @@ const ipManager = new IpManager({
 	enableReputation: true,
 });
 
-// One-line registration — everything else is automatic
 deviceManager.use(ipManager);
 
 app.post("/identify", async (req, res) => {
@@ -50,60 +89,128 @@ app.post("/identify", async (req, res) => {
 });
 ```
 
-If request headers include `CF-Connecting-IP`, `True-Client-IP`, or `X-Real-IP`,
-`ip-devicer` will prefer those values over a proxy-populated `ip` field. If
-those headers are absent, it falls back to the explicit `ip` value and then the
-first `X-Forwarded-For` address.
-
 Known AI-agent traffic from the conservative default catalog is attached to
-`ipEnrichment.agentInfo` and included in the IpManager logging metadata.
+`ipEnrichment.agentInfo` and included in the `IpManager` logging metadata.
 
-## Recommended Setup (MaxMind)
+---
 
-To get full usage out of this library, you will need to follow these
-instructions:
+## Storage adapters
 
-1. Create a free MaxMind account at maxmind.com
-2. Generate a license key in the portal
-3. Download the latest:
-   - GeoLite2-City.mmdb
-   - GeoLite2-ASN.mmdb
-4. Place them in ./data/ (or any secure path) and add to .gitignore
+| Adapter | Import | Use case |
+|---------|--------|----------|
+| In-memory *(default)* | `createIpStorage` | Dev / testing / single-process |
+| SQLite | `createSqliteIpStorage` | Single-process production |
+| PostgreSQL | `createPostgresIpStorage` | Multi-process / HA |
+| Redis | `createRedisIpStorage` | Distributed / low-latency |
 
-### Documentation
+```typescript
+import { createSqliteIpStorage, IpManager } from "ip-devicer";
 
-This project uses typedoc and autodeploys via GitHub Pages. You can view the
-generated documentation [here](https://gatewaycorporate.github.io/ip-devicer/).
-
-## Installation
-
-You can install ip-devicer and tls-devicer alongside FP-Devicer with
-
-```bash
-npm install devicer.js ip-devicer tls-devicer
+const ipManager = new IpManager({
+	licenseKey: process.env.DEVICER_LICENSE_KEY,
+	maxmindPath: "./data/GeoLite2-City.mmdb",
+	asnPath: "./data/GeoLite2-ASN.mmdb",
+	storage: createSqliteIpStorage("./data/ip-history.db", 50),
+});
 ```
 
-You can also install the meta-package for the entire Devicer Intelligence Suite
-with
+---
 
-```bash
-npm install @gatewaycorporate/devicer-intel
+## Recommended setup
+
+To get full value from `ip-devicer`, configure MaxMind locally:
+
+1. Create a free MaxMind account at maxmind.com.
+2. Generate a license key in the MaxMind portal.
+3. Download the latest `GeoLite2-City.mmdb` and `GeoLite2-ASN.mmdb`.
+4. Store both files under `./data/` or another secure path and add them to
+	 `.gitignore`.
+
+If request headers include `CF-Connecting-IP`, `True-Client-IP`, or `X-Real-IP`,
+`ip-devicer` prefers those values over a proxy-populated `ip` field. If those
+headers are absent, it falls back to the explicit `ip` value and then the first
+`X-Forwarded-For` address.
+
+---
+
+## Plugin pipeline
+
+Reference deployments typically bundle `ip-devicer` and `tls-devicer` together
+as the network-intelligence pair.
+
+```text
+identify(payload, context)
+	 │
+	 ├─ 'ip'  post-processor  (ip-devicer)
+	 │     ├─ resolves client IP from headers/context
+	 │     ├─ enriches geo / ASN / risk / AI-agent data
+	 │     └─> result.ipEnrichment + result.ipRiskDelta
+	 │
+	 └─ 'tls' post-processor  (tls-devicer, optional companion bundle)
+				 └─> complementary JA4 / TLS consistency signals
 ```
+
+---
+
+## Enrichment result shape
+
+```typescript
+{
+	ipEnrichment: {
+		country?: string;
+		countryName?: string;
+		city?: string;
+		subdivision?: string;
+		latitude?: number;
+		longitude?: number;
+		timezone?: string;
+		asn?: number;
+		asnOrg?: string;
+		isProxy: boolean;
+		isVpn: boolean;
+		isTor: boolean;
+		isHosting: boolean;
+		agentInfo?: {
+			isAiAgent: boolean;
+			aiAgentProvider?: string;
+			aiAgentConfidence?: number;
+		};
+		rdapInfo: {
+			asn?: number;
+			asnOrg?: string;
+		};
+		riskScore: number;
+		riskFactors: string[];
+		consistencyScore: number;
+		impossibleTravel: boolean;
+	};
+	ipRiskDelta?: number;
+}
+```
+
+---
+
+## License tiers
+
+| Tier | Price | Devices | Capability |
+|------|-------|---------|------------|
+| Free | $0 | 10,000 | Basic features only |
+| Pro | $49 / mo | Unlimited | Single-server production |
+| Enterprise | $299 / mo | Unlimited | Multi-server production |
+
+Production use requires a paid license. You can obtain a dual-use key for
+`ip-devicer` and `tls-devicer` through polar.sh
+[here](https://buy.polar.sh/polar_cl_0Y4djPLDe5yLdNUDKdtPGlFW5TG2ZpFD5qkb93HsSQc).
+
+---
+
+## API reference
+
+This project uses TypeDoc and publishes documentation at
+[gatewaycorporate.github.io/ip-devicer](https://gatewaycorporate.github.io/ip-devicer/).
+
+---
 
 ## License
 
-Published under the **Business Source License 1.1 (BSL-1.1)**
-
-- Free for dev/testing/personal use
-- Production use requires a paid license from Polar.sh
-- Free tier has device count limits and basic features only
-- Pro tier can operate on a single server and has no device count limits
-- Enterprise can operate on any number of servers and has no device count limits
-
-Pass the key in the constructor to remove restrictions
-
-## Obtaining a Key
-
-ip-devicer uses polar.js for key verification. You can obtain a key for dual use
-of this library and tls-devicer by purchasing one
-[here](https://buy.polar.sh/polar_cl_0Y4djPLDe5yLdNUDKdtPGlFW5TG2ZpFD5qkb93HsSQc)
+Business Source License 1.1 — see [license.txt](./license.txt).
