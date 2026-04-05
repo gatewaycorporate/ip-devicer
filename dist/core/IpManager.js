@@ -61,6 +61,13 @@ function normalizeStorage(s) {
     }
     return s;
 }
+/**
+ * Enriches identified devices with IP-derived geolocation, proxy, and reputation signals.
+ *
+ * `IpManager` resolves the effective client IP from request context, performs geo/ASN
+ * enrichment, computes consistency and risk signals against device history, persists
+ * per-device IP snapshots, and integrates with `DeviceManager` as a post-processor.
+ */
 export class IpManager {
     static DEVICE_MANAGER_PLUGIN_NAME = 'ip';
     geo;

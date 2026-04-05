@@ -3,16 +3,32 @@ import type { GeoData } from '../../types.js';
 
 type ReaderModel = Awaited<ReturnType<typeof Reader.open>>;
 
+/**
+ * MaxMind-backed geolocation and ASN enricher for IP addresses.
+ *
+ * The enricher lazily opens the configured City and ASN mmdb files on first use.
+ * Missing databases and lookup failures degrade to empty partial results rather
+ * than throwing, which keeps enrichment non-fatal during request processing.
+ */
 export class GeoEnricher {
   private cityReader: ReaderModel | null = null;
   private asnReader: ReaderModel | null = null;
   private initPromise: Promise<void> | null = null;
 
+  /**
+   * @param cityDbPath - Path to a GeoLite2/GeoIP2 City mmdb file.
+   * @param asnDbPath - Path to a GeoLite2/GeoIP2 ASN mmdb file.
+   */
   constructor(
     private readonly cityDbPath?: string,
     private readonly asnDbPath?: string,
   ) {}
 
+  /**
+   * Open the configured MaxMind databases once.
+   *
+   * Safe to call multiple times; subsequent calls reuse the cached promise.
+   */
   async init(): Promise<void> {
     if (this.initPromise) return this.initPromise;
     this.initPromise = (async () => {
@@ -31,6 +47,11 @@ export class GeoEnricher {
     else await this.initPromise;
   }
 
+  /**
+   * Resolve city-level geolocation data for an IP address.
+   *
+   * Returns an empty object when the city database is unavailable or the lookup fails.
+   */
   async enrichCity(ip: string): Promise<Partial<GeoData>> {
     await this.ensureInit();
     if (!this.cityReader) return {};
@@ -50,6 +71,11 @@ export class GeoEnricher {
     }
   }
 
+  /**
+   * Resolve ASN metadata for an IP address.
+   *
+   * Returns an empty object when the ASN database is unavailable or the lookup fails.
+   */
   async enrichAsn(ip: string): Promise<{ asn?: number; asnOrg?: string }> {
     await this.ensureInit();
     if (!this.asnReader) return {};
@@ -64,6 +90,11 @@ export class GeoEnricher {
     }
   }
 
+  /**
+   * Resolve the combined geolocation and ASN enrichment for an IP address.
+   *
+   * City and ASN lookups run in parallel and their partial results are merged.
+   */
   async enrich(ip: string): Promise<GeoData> {
     const [city, asn] = await Promise.all([
       this.enrichCity(ip),
@@ -72,6 +103,7 @@ export class GeoEnricher {
     return { ...city, ...asn };
   }
 
+  /** Reset the cached readers so the mmdb files can be reopened on the next lookup. */
   close(): void {
     // maxmind reader has no explicit close — GC handles it
     this.cityReader = null;

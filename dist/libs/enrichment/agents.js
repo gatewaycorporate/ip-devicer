@@ -1,4 +1,5 @@
 const RDAP_VERIFIED_AT = '2026-03-13';
+/** Provider metadata table for the shipped AI-agent catalog. */
 export const AI_AGENT_PROVIDER_PROFILES = {
     openai: {
         provider: 'openai',
@@ -106,12 +107,14 @@ export const AI_AGENT_PROVIDER_PROFILES = {
         notes: 'Representative API domain resolved to AWS CloudFront space, so entries remain partner-attributed.',
     },
 };
+/** Human-readable definitions for the supported AI-agent confidence tiers. */
 export const AI_AGENT_CURATION_POLICY = [
     'verified: published provider-owned bot feed or equivalent public source',
     'rdap-attributed: representative provider domain resolves directly to provider-owned network space',
     'partner-attributed: representative provider domain resolves to a known CDN or cloud partner rather than provider-owned space',
     'candidate: domain ownership or RDAP match is too weak to promote above watchlist level',
 ];
+/** Verified AI-agent ranges backed by provider-published feeds or equivalent primary sources. */
 export const VERIFIED_AI_AGENT_RANGES = [
     {
         provider: 'openai', confidence: 'verified', status: 'default', source: 'OAI-SearchBot', cidr: '104.210.140.128/28', trafficType: 'crawler',
@@ -186,6 +189,7 @@ export const VERIFIED_AI_AGENT_RANGES = [
         evidence: [{ type: 'published-feed', reference: 'https://openai.com/chatgpt-user.json', note: 'OpenAI published user-triggered bot feed' }],
     },
 ];
+/** Extended ranges attributed directly to provider-owned network space via RDAP review. */
 export const RDAP_ATTRIBUTED_AI_AGENT_RANGES = [
     {
         provider: 'google', confidence: 'rdap-attributed', status: 'extended', source: 'Gemini API sample', cidr: '142.250.189.138/32', trafficType: 'provider-infrastructure',
@@ -198,6 +202,7 @@ export const RDAP_ATTRIBUTED_AI_AGENT_RANGES = [
         notes: 'Representative Meta AI domain resolved directly to Meta-owned space.',
     },
 ];
+/** Extended ranges attributed through a hosting or CDN partner rather than provider-owned space. */
 export const PARTNER_ATTRIBUTED_AI_AGENT_RANGES = [
     {
         provider: 'xai', confidence: 'partner-attributed', status: 'extended', source: 'xAI API sample', cidr: '104.18.19.80/32', trafficType: 'agent-runtime',
@@ -255,6 +260,7 @@ export const PARTNER_ATTRIBUTED_AI_AGENT_RANGES = [
         notes: 'Representative DeepSeek API domain resolved to AWS CloudFront space.',
     },
 ];
+/** Watchlist-only ranges that have weak attribution and should not ship by default. */
 export const CANDIDATE_AI_AGENT_RANGES = [
     {
         provider: 'anthropic', confidence: 'candidate', status: 'candidate', source: 'Anthropic API sample', cidr: '160.79.104.10/32', trafficType: 'agent-runtime',
@@ -269,12 +275,14 @@ export const CANDIDATE_AI_AGENT_RANGES = [
  * extended and candidate collections until explicitly promoted.
  */
 export const DEFAULT_AI_AGENT_RANGES = [...VERIFIED_AI_AGENT_RANGES];
+/** Union of all default, extended, and candidate AI-agent ranges. */
 export const ALL_AI_AGENT_RANGES = [
     ...VERIFIED_AI_AGENT_RANGES,
     ...RDAP_ATTRIBUTED_AI_AGENT_RANGES,
     ...PARTNER_ATTRIBUTED_AI_AGENT_RANGES,
     ...CANDIDATE_AI_AGENT_RANGES,
 ];
+/** RDAP/hostname aliases that help map observed registrant strings back to providers. */
 export const AI_AGENT_PROVIDER_RDAP_ALIASES = {
     openai: [...AI_AGENT_PROVIDER_PROFILES.openai.aliases],
     anthropic: [...AI_AGENT_PROVIDER_PROFILES.anthropic.aliases],
@@ -292,12 +300,15 @@ export const AI_AGENT_PROVIDER_RDAP_ALIASES = {
     writer: [...AI_AGENT_PROVIDER_PROFILES.writer.aliases],
     deepseek: [...AI_AGENT_PROVIDER_PROFILES.deepseek.aliases],
 };
+/** Return all catalog entries assigned to a specific confidence tier. */
 export function getAiAgentRangesByConfidence(confidence) {
     return ALL_AI_AGENT_RANGES.filter((entry) => entry.confidence === confidence);
 }
+/** Return all catalog entries attributed to a single provider. */
 export function getAiAgentRangesByProvider(provider) {
     return ALL_AI_AGENT_RANGES.filter((entry) => entry.provider === provider);
 }
+/** Group a range collection by provider using the full provider key set. */
 export function groupAiAgentRangesByProvider(ranges = ALL_AI_AGENT_RANGES) {
     return {
         openai: ranges.filter((entry) => entry.provider === 'openai'),

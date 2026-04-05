@@ -255,6 +255,13 @@ type AgentInfo = {
   aiAgentConfidence?: number;
 };
 
+/**
+ * Classifies IPs as Tor, VPN, proxy, hosting, or AI-agent traffic.
+ *
+ * Detection blends maintained CIDR lists with optional RDAP lookups so the
+ * classifier can fall back to registrant-name heuristics when an address is not
+ * covered by the bundled IPv4 ranges.
+ */
 export class ProxyEnricher {
   private torExitNodes = new Set<string>();
   private vpnCidrs: string[] = [...DEFAULT_VPN_CIDRS];
@@ -263,6 +270,12 @@ export class ProxyEnricher {
   private readonly hostingCidrs: string[] = HOSTING_CIDRS;
   private initDone = false;
 
+  /**
+   * @param torExitListUrl - URL used to refresh the Tor exit-node list.
+   * @param proxyListPaths - Optional local CIDR files appended to the built-in VPN/proxy ranges.
+   * @param hasLicense - Whether paid-tier list loading should be enabled.
+   * @param enableRdap - Whether RDAP lookups may be used as a fallback classifier.
+   */
   constructor(
     private readonly torExitListUrl: string = DEFAULT_TOR_URL,
     private readonly proxyListPaths: string[] = [],
@@ -270,6 +283,11 @@ export class ProxyEnricher {
     private readonly enableRdap: boolean = true,
   ) {}
 
+  /**
+   * Fetch the Tor exit-node list and any licensed local CIDR files once.
+   *
+   * Initialization is best-effort: failed downloads or unreadable files do not throw.
+   */
   async init(): Promise<void> {
     if (this.initDone) return;
     await Promise.allSettled([
@@ -311,22 +329,41 @@ export class ProxyEnricher {
     }
   }
 
+  /** Return `true` when the IP appears in the cached Tor exit-node list. */
   isTor(ip: string): boolean {
     return this.torExitNodes.has(ip);
   }
 
+  /**
+   * Classify an IP as VPN traffic.
+   *
+   * Checks the bundled/license-supplied CIDR lists first, then optionally falls
+   * back to RDAP organization-name heuristics.
+   */
   async isVpn(ip: string, rdapInfo?: { asn?: number; asnOrg?: string }): Promise<boolean> {
     if (this.vpnCidrs.some((cidr) => isInCidr(ip, cidr))) return true;
     const { asnOrg } = rdapInfo ?? await this.getRdapInfo(ip);
     return asnOrg ? VPN_ORG_PATTERNS.some((p) => p.test(asnOrg)) : false;
   }
 
+  /**
+   * Classify an IP as proxy traffic.
+   *
+   * Checks the bundled/license-supplied CIDR lists first, then optionally falls
+   * back to RDAP organization-name heuristics.
+   */
   async isProxy(ip: string, rdapInfo?: { asn?: number; asnOrg?: string }): Promise<boolean> {
     if (this.proxyCidrs.some((cidr) => isInCidr(ip, cidr))) return true;
     const { asnOrg } = rdapInfo ?? await this.getRdapInfo(ip);
     return asnOrg ? PROXY_ORG_PATTERNS.some((p) => p.test(asnOrg)) : false;
   }
 
+  /**
+   * Classify an IP as datacenter or hosting-provider traffic.
+   *
+   * Checks known hosting CIDRs first, then optionally falls back to RDAP
+   * organization-name heuristics.
+   */
   async isHosting(ip: string, rdapInfo?: { asn?: number; asnOrg?: string }): Promise<boolean> {
     if (this.hostingCidrs.some((cidr) => isInCidr(ip, cidr))) return true;
     const { asnOrg } = rdapInfo ?? await this.getRdapInfo(ip);
@@ -365,6 +402,12 @@ export class ProxyEnricher {
     return bestMatch;
   }
 
+  /**
+   * Classify whether the IP belongs to a known AI-agent range.
+   *
+   * Returns the matched provider plus a numeric confidence score when a catalog
+   * range applies, otherwise `{ isAiAgent: false }`.
+   */
   isAiAgent(ip: string): AgentInfo {
     const match = this.getAiAgentMatch(ip);
     if (!match) {
@@ -416,6 +459,11 @@ export class ProxyEnricher {
     }
   }
 
+  /**
+   * Run the full IP classification pass and return all derived flags together.
+   *
+   * RDAP is looked up once and shared across VPN/proxy/hosting heuristics.
+   */
   async classifyAll(ip: string): Promise<{
     isTor: boolean;
     isVpn: boolean;
@@ -440,6 +488,9 @@ export class ProxyEnricher {
     };
   }
 
+  /**
+   * Reset cached remote and local lists, then re-run initialization.
+   */
   async refresh(): Promise<void> {
     this.torExitNodes.clear();
     this.vpnCidrs = [...DEFAULT_VPN_CIDRS];

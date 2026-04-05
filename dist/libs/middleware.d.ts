@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { IpManager } from '../core/IpManager.js';
+/** Express/Connect-style continuation callback used by the IP middleware. */
 export type NextFunction = (err?: unknown) => void;
 /**
  * Creates an Express-compatible middleware that resolves the real client IP

@@ -1,3 +1,4 @@
+/** Canonical provider identifiers used throughout the AI-agent IP catalog. */
 export type AiAgentProvider =
   | 'openai'
   | 'anthropic'
@@ -15,55 +16,82 @@ export type AiAgentProvider =
   | 'writer'
   | 'deepseek';
 
+/** Confidence tier assigned to an AI-agent range based on attribution quality. */
 export type AiAgentConfidence =
   | 'verified'
   | 'rdap-attributed'
   | 'partner-attributed'
   | 'candidate';
 
+/** Promotion state of a catalog entry within the shipped range sets. */
 export type AiAgentRangeStatus = 'default' | 'extended' | 'candidate';
 
+/** High-level traffic role the range is believed to represent. */
 export type AiAgentTrafficType =
   | 'crawler'
   | 'user-triggered'
   | 'agent-runtime'
   | 'provider-infrastructure';
 
+/** Evidence source used to justify a catalog entry. */
 export type AiAgentEvidenceType =
   | 'published-feed'
   | 'rdap-sample'
   | 'domain-resolution';
 
+/** Supporting evidence attached to a curated AI-agent CIDR entry. */
 export interface AiAgentEvidence {
+  /** Type of supporting evidence used to justify the attribution. */
   type: AiAgentEvidenceType;
+  /** Feed URL, hostname, or other external reference backing the evidence. */
   reference: string;
+  /** Example IP address observed for the provider, when applicable. */
   sampleIp?: string;
+  /** RDAP organization string observed for the sampled IP. */
   rdapOrg?: string;
+  /** Date the evidence was manually verified. */
   verifiedAt?: string;
+  /** Additional human-readable notes about the evidence. */
   note?: string;
 }
 
+/** Provider metadata used for display names, aliases, and curation notes. */
 export interface AiAgentProviderProfile {
+  /** Stable provider identifier. */
   provider: AiAgentProvider;
+  /** Human-readable provider name. */
   displayName: string;
+  /** RDAP and hostname aliases associated with the provider. */
   aliases: readonly string[];
+  /** Provider homepage or primary product page. */
   homepage: string;
+  /** Notes about attribution quality or curation caveats. */
   notes: string;
 }
 
+/** Single curated CIDR entry representing AI-agent or provider infrastructure traffic. */
 export interface AiAgentRange {
+  /** Provider attributed to the CIDR. */
   provider: AiAgentProvider;
+  /** Attribution confidence assigned during curation. */
   confidence: AiAgentConfidence;
+  /** Whether the range ships by default, as an extended set, or as a candidate. */
   status: AiAgentRangeStatus;
+  /** Label describing where the entry originated. */
   source: string;
+  /** IPv4 CIDR block or exact `/32` sample address. */
   cidr: string;
+  /** High-level traffic category for the entry. */
   trafficType: AiAgentTrafficType;
+  /** Evidence supporting the attribution. */
   evidence: readonly AiAgentEvidence[];
+  /** Optional curation notes about why the entry is included. */
   notes?: string;
 }
 
 const RDAP_VERIFIED_AT = '2026-03-13';
 
+/** Provider metadata table for the shipped AI-agent catalog. */
 export const AI_AGENT_PROVIDER_PROFILES: Record<AiAgentProvider, AiAgentProviderProfile> = {
   openai: {
     provider: 'openai',
@@ -172,6 +200,7 @@ export const AI_AGENT_PROVIDER_PROFILES: Record<AiAgentProvider, AiAgentProvider
   },
 };
 
+/** Human-readable definitions for the supported AI-agent confidence tiers. */
 export const AI_AGENT_CURATION_POLICY = [
   'verified: published provider-owned bot feed or equivalent public source',
   'rdap-attributed: representative provider domain resolves directly to provider-owned network space',
@@ -179,6 +208,7 @@ export const AI_AGENT_CURATION_POLICY = [
   'candidate: domain ownership or RDAP match is too weak to promote above watchlist level',
 ] as const;
 
+/** Verified AI-agent ranges backed by provider-published feeds or equivalent primary sources. */
 export const VERIFIED_AI_AGENT_RANGES: AiAgentRange[] = [
   {
     provider: 'openai', confidence: 'verified', status: 'default', source: 'OAI-SearchBot', cidr: '104.210.140.128/28', trafficType: 'crawler',
@@ -254,6 +284,7 @@ export const VERIFIED_AI_AGENT_RANGES: AiAgentRange[] = [
   },
 ];
 
+/** Extended ranges attributed directly to provider-owned network space via RDAP review. */
 export const RDAP_ATTRIBUTED_AI_AGENT_RANGES: AiAgentRange[] = [
   {
     provider: 'google', confidence: 'rdap-attributed', status: 'extended', source: 'Gemini API sample', cidr: '142.250.189.138/32', trafficType: 'provider-infrastructure',
@@ -267,6 +298,7 @@ export const RDAP_ATTRIBUTED_AI_AGENT_RANGES: AiAgentRange[] = [
   },
 ];
 
+/** Extended ranges attributed through a hosting or CDN partner rather than provider-owned space. */
 export const PARTNER_ATTRIBUTED_AI_AGENT_RANGES: AiAgentRange[] = [
   {
     provider: 'xai', confidence: 'partner-attributed', status: 'extended', source: 'xAI API sample', cidr: '104.18.19.80/32', trafficType: 'agent-runtime',
@@ -325,6 +357,7 @@ export const PARTNER_ATTRIBUTED_AI_AGENT_RANGES: AiAgentRange[] = [
   },
 ];
 
+/** Watchlist-only ranges that have weak attribution and should not ship by default. */
 export const CANDIDATE_AI_AGENT_RANGES: AiAgentRange[] = [
   {
     provider: 'anthropic', confidence: 'candidate', status: 'candidate', source: 'Anthropic API sample', cidr: '160.79.104.10/32', trafficType: 'agent-runtime',
@@ -341,6 +374,7 @@ export const CANDIDATE_AI_AGENT_RANGES: AiAgentRange[] = [
  */
 export const DEFAULT_AI_AGENT_RANGES: AiAgentRange[] = [...VERIFIED_AI_AGENT_RANGES];
 
+/** Union of all default, extended, and candidate AI-agent ranges. */
 export const ALL_AI_AGENT_RANGES: AiAgentRange[] = [
   ...VERIFIED_AI_AGENT_RANGES,
   ...RDAP_ATTRIBUTED_AI_AGENT_RANGES,
@@ -348,6 +382,7 @@ export const ALL_AI_AGENT_RANGES: AiAgentRange[] = [
   ...CANDIDATE_AI_AGENT_RANGES,
 ];
 
+/** RDAP/hostname aliases that help map observed registrant strings back to providers. */
 export const AI_AGENT_PROVIDER_RDAP_ALIASES: Record<AiAgentProvider, string[]> = {
   openai: [...AI_AGENT_PROVIDER_PROFILES.openai.aliases],
   anthropic: [...AI_AGENT_PROVIDER_PROFILES.anthropic.aliases],
@@ -366,14 +401,17 @@ export const AI_AGENT_PROVIDER_RDAP_ALIASES: Record<AiAgentProvider, string[]> =
   deepseek: [...AI_AGENT_PROVIDER_PROFILES.deepseek.aliases],
 };
 
+/** Return all catalog entries assigned to a specific confidence tier. */
 export function getAiAgentRangesByConfidence(confidence: AiAgentConfidence): AiAgentRange[] {
   return ALL_AI_AGENT_RANGES.filter((entry) => entry.confidence === confidence);
 }
 
+/** Return all catalog entries attributed to a single provider. */
 export function getAiAgentRangesByProvider(provider: AiAgentProvider): AiAgentRange[] {
   return ALL_AI_AGENT_RANGES.filter((entry) => entry.provider === provider);
 }
 
+/** Group a range collection by provider using the full provider key set. */
 export function groupAiAgentRangesByProvider(
   ranges: readonly AiAgentRange[] = ALL_AI_AGENT_RANGES,
 ): Record<AiAgentProvider, AiAgentRange[]> {
